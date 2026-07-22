@@ -125,7 +125,7 @@ select throws_ok(
             (select id from public.memberships
              where board_id = 'e0000000-0000-0000-0000-0000000000aa'
                and user_id = 'e2222222-2222-2222-2222-222222222222'))$$,
-  'a guest cannot assign an item to another member');
+  'P0001', null, 'a guest cannot assign an item to another member');
 -- But a guest may create an item for themselves.
 select lives_ok(
   $$insert into public.items (board_id, title, visibility, created_by)
