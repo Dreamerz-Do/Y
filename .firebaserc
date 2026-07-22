@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "REPLACE_WITH_FIREBASE_PROJECT_ID"
+  },
+  "targets": {
+    "REPLACE_WITH_FIREBASE_PROJECT_ID": {
+      "hosting": {
+        "development": ["REPLACE_WITH_DEV_HOSTING_SITE"],
+        "production": ["REPLACE_WITH_PROD_HOSTING_SITE"]
+      }
+    }
+  }
+}
