@@ -5,6 +5,8 @@ import { useSessionStore } from '@/stores/session'
 // straight at a board, and every screen is explicitly board-scoped.
 const routes: RouteRecordRaw[] = [
   { path: '/login', name: 'login', component: () => import('@/modules/auth/components/LoginView.vue') },
+  { path: '/signup', name: 'signup', component: () => import('@/modules/auth/components/SignUpView.vue') },
+  { path: '/account', name: 'account', component: () => import('@/modules/auth/components/AccountView.vue') },
   { path: '/', name: 'boards', component: () => import('@/modules/boards/components/BoardsView.vue') },
   {
     path: '/b/:boardId/members',
@@ -26,12 +28,16 @@ export const router = createRouter({
   routes,
 })
 
+// Login and sign-up are the only screens reachable without a session.
+const PUBLIC_ROUTES = new Set(['login', 'signup'])
+
 router.beforeEach((to) => {
   const session = useSessionStore()
-  if (!session.isAuthenticated && to.name !== 'login') {
+  const isPublic = typeof to.name === 'string' && PUBLIC_ROUTES.has(to.name)
+  if (!session.isAuthenticated && !isPublic) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
-  if (session.isAuthenticated && to.name === 'login') {
+  if (session.isAuthenticated && isPublic) {
     return { name: 'boards' }
   }
   return true

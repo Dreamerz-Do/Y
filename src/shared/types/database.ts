@@ -357,6 +357,10 @@ export type Database = {
         Args: { inv: string }
         Returns: undefined
       }
+      delete_current_user: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       board_role: 'owner' | 'member' | 'guest'

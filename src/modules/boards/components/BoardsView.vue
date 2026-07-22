@@ -35,6 +35,14 @@ function open(boardId: string): void {
   <div class="flex min-h-dvh flex-col">
     <header class="flex h-14 items-center justify-between border-b border-border px-3">
       <h1 class="text-screen font-medium">Boards</h1>
+      <button
+        type="button"
+        class="flex h-touch w-touch items-center justify-center rounded-full text-text"
+        aria-label="Account"
+        @click="router.push({ name: 'account' })"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>
+      </button>
     </header>
 
     <div class="flex-1 overflow-y-auto p-4">
