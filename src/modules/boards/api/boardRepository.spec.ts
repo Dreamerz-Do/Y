@@ -4,7 +4,13 @@ import type { Tables } from '@/shared/types/database'
 // Chainable, thenable builder recording table, filters and payloads, so the
 // membership mutations can be asserted without a live database. Mocking the
 // client has no effect on the pure mapper tests below.
-const calls: { table?: string; eq: Array<[string, unknown]>; update?: unknown; deleted?: boolean } = { eq: [] }
+const calls: {
+  table?: string
+  eq: Array<[string, unknown]>
+  update?: unknown
+  deleted?: boolean
+  rpc?: { name: string; args: unknown }
+} = { eq: [] }
 let resolved: { data: unknown; error: unknown } = { data: [], error: null }
 
 function builder() {
@@ -31,6 +37,10 @@ vi.mock('@/shared/lib/supabaseClient', () => ({
       calls.table = table
       return builder()
     },
+    rpc: (name: string, args: unknown) => {
+      calls.rpc = { name, args }
+      return Promise.resolve(resolved)
+    },
   },
 }))
 
@@ -41,6 +51,7 @@ beforeEach(() => {
   calls.eq = []
   calls.update = undefined
   calls.deleted = undefined
+  calls.rpc = undefined
   resolved = { data: [], error: null }
 })
 
@@ -98,6 +109,39 @@ describe('mapMember', () => {
     expect(member.name).toBe('Onbekend')
     expect(member.hue).toBeGreaterThanOrEqual(0)
     expect(member.hue).toBeLessThan(360)
+  })
+})
+
+describe('boardRepository.create', () => {
+  it('creates the board through the create_board RPC and maps the returned row', async () => {
+    // Arrange — the database generates the id and returns the full row.
+    resolved = {
+      data: {
+        id: 'db-generated',
+        name: 'Huishouden',
+        accent_hue: 215,
+        default_visibility: 'board',
+        created_by: 'u1',
+        created_at: '2026-04-01T00:00:00Z',
+      },
+      error: null,
+    }
+
+    // Act
+    const board = await boardRepository.create('Huishouden', 215)
+
+    // Assert
+    expect(calls.rpc).toEqual({
+      name: 'create_board',
+      args: { board_name: 'Huishouden', accent: 215 },
+    })
+    expect(board).toEqual({
+      id: 'db-generated',
+      name: 'Huishouden',
+      accentHue: 215,
+      defaultVisibility: 'board',
+      createdBy: 'u1',
+    })
   })
 })
 
