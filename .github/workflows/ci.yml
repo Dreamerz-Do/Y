@@ -37,13 +37,25 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Once the RLS policies exist, run them against a throwaway instance,
-  # not against the development environment. See spec 9.8.
-  #
-  # rls-policies:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: supabase/setup-cli@v1
-  #     - run: supabase start
-  #     - run: supabase test db
+  # RLS policy tests (spec 9.8): run the pgTAP suite in supabase/tests against a
+  # throwaway local instance, never against the development environment. The
+  # matrix in spec 4.2 is the specification — "a policy without a test counts as
+  # absent" (spec 9.5).
+  rls-policies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase (applies migrations and seed)
+        run: supabase start
+
+      - name: Run RLS policy tests
+        run: supabase test db
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop

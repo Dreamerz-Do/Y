@@ -1,6 +1,48 @@
-import { describe, it, expect } from 'vitest'
-import { mapBoard, mapMember } from './boardRepository'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Tables } from '@/shared/types/database'
+
+// Chainable, thenable builder recording table, filters and payloads, so the
+// membership mutations can be asserted without a live database. Mocking the
+// client has no effect on the pure mapper tests below.
+const calls: { table?: string; eq: Array<[string, unknown]>; update?: unknown; deleted?: boolean } = { eq: [] }
+let resolved: { data: unknown; error: unknown } = { data: [], error: null }
+
+function builder() {
+  const chain: Record<string, unknown> = {}
+  chain.update = (payload: unknown) => {
+    calls.update = payload
+    return chain
+  }
+  chain.delete = () => {
+    calls.deleted = true
+    return chain
+  }
+  chain.eq = (col: string, val: unknown) => {
+    calls.eq.push([col, val])
+    return chain
+  }
+  chain.then = (onFulfilled: (v: unknown) => unknown) => Promise.resolve(resolved).then(onFulfilled)
+  return chain
+}
+
+vi.mock('@/shared/lib/supabaseClient', () => ({
+  supabase: {
+    from: (table: string) => {
+      calls.table = table
+      return builder()
+    },
+  },
+}))
+
+import { boardRepository, mapBoard, mapMember } from './boardRepository'
+
+beforeEach(() => {
+  calls.table = undefined
+  calls.eq = []
+  calls.update = undefined
+  calls.deleted = undefined
+  resolved = { data: [], error: null }
+})
 
 describe('mapBoard', () => {
   it('maps snake_case columns to the domain board', () => {
@@ -56,5 +98,35 @@ describe('mapMember', () => {
     expect(member.name).toBe('Onbekend')
     expect(member.hue).toBeGreaterThanOrEqual(0)
     expect(member.hue).toBeLessThan(360)
+  })
+})
+
+describe('boardRepository.updateRole', () => {
+  it('updates the role scoped to the membership id', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await boardRepository.updateRole('m1', 'member')
+
+    // Assert
+    expect(calls.table).toBe('memberships')
+    expect(calls.update).toEqual({ role: 'member' })
+    expect(calls.eq).toContainEqual(['id', 'm1'])
+  })
+})
+
+describe('boardRepository.removeMember', () => {
+  it('deletes the membership by id', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await boardRepository.removeMember('m1')
+
+    // Assert
+    expect(calls.table).toBe('memberships')
+    expect(calls.deleted).toBe(true)
+    expect(calls.eq).toContainEqual(['id', 'm1'])
   })
 })

@@ -69,5 +69,10 @@ async function submit(): Promise<void> {
         {{ busy ? 'Bezig…' : 'Inloggen' }}
       </button>
     </form>
+
+    <p class="mt-6 text-center text-body2 text-muted">
+      Nog geen account?
+      <RouterLink to="/signup" class="font-medium text-accent">Account aanmaken</RouterLink>
+    </p>
   </main>
 </template>

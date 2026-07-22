@@ -28,18 +28,35 @@ export const authRepository = {
     return user
   },
 
-  async signUp(email: string, password: string, displayName: string): Promise<void> {
-    const { error } = await supabase.auth.signUp({
+  /**
+   * Register a new account. Returns the user when a session is created straight
+   * away (email confirmation disabled); returns null when the project requires
+   * the user to confirm their address first.
+   */
+  async signUp(email: string, password: string, displayName: string): Promise<AuthedUser | null> {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { display_name: displayName } },
     })
     if (error) throw error
+    return data.session ? toUser(data.user) : null
   },
 
   async signOut(): Promise<void> {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+  },
+
+  /**
+   * Delete the signed-in account and the data it owns (spec 4.5 / 8). The work
+   * runs in a SECURITY DEFINER function; the client only triggers it and then
+   * signs out.
+   */
+  async deleteAccount(): Promise<void> {
+    const { error } = await supabase.rpc('delete_current_user')
+    if (error) throw error
+    await supabase.auth.signOut()
   },
 
   /** Subscribe to session changes; returns an unsubscribe function. */

@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Tables } from '@/shared/types/database'
 
-// A chainable query-builder mock that records the filters applied, so we can
-// assert board-scoping (hard rule 1) without a live database.
-const calls: { table?: string; eq: Array<[string, unknown]> } = { eq: [] }
+// A chainable query-builder mock that records the filters and payloads applied,
+// so we can assert board-scoping (hard rule 1) and mutations without a live
+// database. The chain is thenable so `await`ing it (e.g. after .eq) resolves.
+const calls: {
+  table?: string
+  eq: Array<[string, unknown]>
+  insert?: unknown
+  update?: unknown
+  deleted?: boolean
+} = { eq: [] }
 let resolved: { data: unknown; error: unknown } = { data: [], error: null }
 
 function builder() {
@@ -12,13 +19,24 @@ function builder() {
   chain.select = passthrough
   chain.order = () => Promise.resolve(resolved)
   chain.single = () => Promise.resolve(resolved)
+  chain.maybeSingle = () => Promise.resolve(resolved)
   chain.eq = (col: string, val: unknown) => {
     calls.eq.push([col, val])
     return chain
   }
-  chain.insert = passthrough
-  chain.update = passthrough
-  chain.delete = passthrough
+  chain.insert = (payload: unknown) => {
+    calls.insert = payload
+    return chain
+  }
+  chain.update = (payload: unknown) => {
+    calls.update = payload
+    return chain
+  }
+  chain.delete = () => {
+    calls.deleted = true
+    return chain
+  }
+  chain.then = (onFulfilled: (v: unknown) => unknown) => Promise.resolve(resolved).then(onFulfilled)
   return chain
 }
 
@@ -58,6 +76,9 @@ function makeRow(overrides: Partial<Tables<'items'>> = {}): Tables<'items'> {
 beforeEach(() => {
   calls.table = undefined
   calls.eq = []
+  calls.insert = undefined
+  calls.update = undefined
+  calls.deleted = undefined
   resolved = { data: [], error: null }
 })
 
@@ -118,5 +139,80 @@ describe('itemRepository.busyBlocksByBoard', () => {
     // Assert
     expect(calls.table).toBe('calendar_busy_blocks')
     expect(calls.eq).toContainEqual(['board_id', 'b1'])
+  })
+})
+
+describe('itemRepository.create', () => {
+  it('stamps created_by from the authenticated user', async () => {
+    // Arrange
+    resolved = { data: makeRow(), error: null }
+
+    // Act
+    await itemRepository.create({ boardId: 'b1', title: 'Nieuw' })
+
+    // Assert
+    expect(calls.insert).toMatchObject({ board_id: 'b1', title: 'Nieuw', created_by: 'u1' })
+  })
+})
+
+describe('itemRepository.update', () => {
+  it('maps only the provided fields and scopes to the item id', async () => {
+    // Arrange
+    resolved = { data: makeRow({ title: 'Gewijzigd' }), error: null }
+
+    // Act
+    await itemRepository.update('i1', { title: 'Gewijzigd', visibility: 'private' })
+
+    // Assert
+    expect(calls.update).toEqual({ title: 'Gewijzigd', visibility: 'private' })
+    expect(calls.eq).toContainEqual(['id', 'i1'])
+  })
+})
+
+describe('itemRepository.sharesByItem', () => {
+  it('splits rows into member and group targets', async () => {
+    // Arrange
+    resolved = {
+      data: [
+        { membership_id: 'm1', group_id: null },
+        { membership_id: null, group_id: 'g1' },
+      ],
+      error: null,
+    }
+
+    // Act
+    const targets = await itemRepository.sharesByItem('i1')
+
+    // Assert
+    expect(targets).toEqual({ memberIds: ['m1'], groupIds: ['g1'] })
+  })
+})
+
+describe('itemRepository.replaceShares', () => {
+  it('clears existing shares before inserting the new audience', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await itemRepository.replaceShares('i1', { memberIds: ['m1'], groupIds: ['g1'] })
+
+    // Assert
+    expect(calls.deleted).toBe(true)
+    expect(calls.insert).toEqual([
+      { item_id: 'i1', membership_id: 'm1' },
+      { item_id: 'i1', group_id: 'g1' },
+    ])
+  })
+
+  it('does not insert when the audience is empty', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await itemRepository.replaceShares('i1', { memberIds: [], groupIds: [] })
+
+    // Assert
+    expect(calls.deleted).toBe(true)
+    expect(calls.insert).toBeUndefined()
   })
 })

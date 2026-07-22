@@ -24,8 +24,22 @@ export const useSessionStore = defineStore('session', () => {
     user.value = await authRepository.signIn(email, password)
   }
 
+  /** Register; returns true when a session started immediately (auto sign-in),
+   * false when the project still needs the address confirmed. */
+  async function signUp(email: string, password: string, displayName: string): Promise<boolean> {
+    const registered = await authRepository.signUp(email, password, displayName)
+    user.value = registered
+    return registered !== null
+  }
+
   async function signOut(): Promise<void> {
     await authRepository.signOut()
+    user.value = null
+    lastBoardId.value = null
+  }
+
+  async function deleteAccount(): Promise<void> {
+    await authRepository.deleteAccount()
     user.value = null
     lastBoardId.value = null
   }
@@ -34,5 +48,16 @@ export const useSessionStore = defineStore('session', () => {
     lastBoardId.value = boardId
   }
 
-  return { user, ready, lastBoardId, isAuthenticated, init, signIn, signOut, rememberBoard }
+  return {
+    user,
+    ready,
+    lastBoardId,
+    isAuthenticated,
+    init,
+    signIn,
+    signUp,
+    signOut,
+    deleteAccount,
+    rememberBoard,
+  }
 })

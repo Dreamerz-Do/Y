@@ -34,12 +34,43 @@ For each project:
 1. Create the project (EU region).
 2. Apply migrations: `npx supabase link --project-ref <ref>` then
    `npx supabase db push`.
-3. Note the **Project URL**, the **anon key**, the **project ref**, the
-   **database password** and a personal **access token** — these become CI
-   values below.
+3. Collect the five values the CI needs (see the mapping table below).
 
-The **service role key is never used in client code or in any workflow a fork
-can trigger** (hard rule 7). It is not referenced anywhere in this repo.
+### Where each value lives in the dashboard
+
+Supabase's dashboard labels move around; treat the live UI as authoritative and
+use this as a guide. The names in the left column are *our* GitHub var/secret
+names (section 4) — they are just labels and do not need to match Supabase's
+wording.
+
+| Our name | What it is | Roughly where in Supabase |
+|---|---|---|
+| `SUPABASE_URL` | `https://<ref>.supabase.co` | Project Settings → Data API → Project URL |
+| `SUPABASE_PROJECT_REF` | project reference id | Project Settings → General → Reference ID (also the URL's subdomain) |
+| `SUPABASE_ANON_KEY` | the public, client-safe key | Project Settings → API Keys → **Publishable key** (see the note below) |
+| `SUPABASE_DB_PASSWORD` | database password | set when the project is created; reset under Project Settings → Database |
+| `SUPABASE_ACCESS_TOKEN` | CLI personal access token | **Account** level, not the project: <https://supabase.com/dashboard/account/tokens> |
+
+### Note on API keys — new vs legacy
+
+Supabase has replaced its original API keys with a new key system, so a fresh
+project shows both:
+
+- **Publishable key** (`sb_publishable_…`) — the public, client-safe key. **Use
+  this for `SUPABASE_ANON_KEY` and `VITE_SUPABASE_ANON_KEY`.**
+- **Secret key** (`sb_secret_…`) — the privileged key. Never used here.
+- The original **anon** and **service_role** keys (long `eyJ…` JWTs) now sit
+  under a **Legacy API keys** tab and are being phased out.
+
+The legacy **anon** key still works and is interchangeable with the publishable
+key (`supabase-js` accepts either, and both map to the `anon` PostgREST role),
+but prefer the publishable key on a new project. Despite the GitHub secret being
+named `SUPABASE_ANON_KEY`, put the **publishable** key in it — "anon" here just
+means "the public client key", not specifically the legacy tab.
+
+The **secret key / legacy service_role key is never used in client code or in
+any workflow a fork can trigger** (hard rule 7). Neither is referenced anywhere
+in this repo.
 
 ## 3. Firebase Hosting — one project, two targets
 
@@ -70,7 +101,7 @@ their environment-specific values from GitHub. Set these per **environment**
 |---|---|---|
 | `SUPABASE_ACCESS_TOKEN` | deploy-\* | Personal access token for the Supabase CLI |
 | `SUPABASE_DB_PASSWORD` | deploy-\* | Database password for that project |
-| `SUPABASE_ANON_KEY` | deploy-\* | Public anon key (safe in the client) |
+| `SUPABASE_ANON_KEY` | deploy-\* | Public client key — the **publishable key** (`sb_publishable_…`); the legacy anon key also works (see §2) |
 | `FIREBASE_SERVICE_ACCOUNT` | deploy-\* | Contents of the Hosting service-account JSON |
 
 Attach a **required reviewer** to the `production` environment so a merge into
