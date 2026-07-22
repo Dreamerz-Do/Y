@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "REPLACE_WITH_FIREBASE_PROJECT_ID"
+    "default": "boards-app-41017"
   },
   "targets": {
-    "REPLACE_WITH_FIREBASE_PROJECT_ID": {
+    "boards-app-41017": {
       "hosting": {
-        "development": ["REPLACE_WITH_DEV_HOSTING_SITE"],
-        "production": ["REPLACE_WITH_PROD_HOSTING_SITE"]
+        "development": ["boards-app-dev-1"],
+        "production":  ["boards-app-41017"]
       }
     }
   }
