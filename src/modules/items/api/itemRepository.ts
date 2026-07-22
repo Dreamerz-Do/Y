@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/lib/supabaseClient'
-import type { Tables, TablesInsert, Views } from '@/shared/types/database'
+import type { Tables, TablesInsert, TablesUpdate, Views } from '@/shared/types/database'
 import type { ItemColorKey } from '@/shared/lib/palette'
 import type { BusyBlock, Item, Visibility } from '../types/item'
 
@@ -45,6 +45,7 @@ function mapBusy(row: BusyRow): BusyBlock {
 export interface NewItem {
   boardId: string
   title: string
+  notes?: string | null
   startsAt?: string | null
   endsAt?: string | null
   allDay?: boolean
@@ -52,6 +53,26 @@ export interface NewItem {
   color?: ItemColorKey | null
   visibility?: Visibility
   revealOwner?: boolean
+}
+
+/** A partial edit of an existing item. Every field is optional. */
+export interface ItemPatch {
+  title?: string
+  notes?: string | null
+  startsAt?: string | null
+  endsAt?: string | null
+  allDay?: boolean
+  assigneeId?: string | null
+  color?: ItemColorKey | null
+  visibility?: Visibility
+  revealOwner?: boolean
+  isDone?: boolean
+}
+
+/** The audience of a shared_with item: explicit members and/or groups. */
+export interface ShareTargets {
+  memberIds: string[]
+  groupIds: string[]
 }
 
 export const itemRepository = {
@@ -98,6 +119,69 @@ export const itemRepository = {
     const { data, error } = await supabase.from('items').insert(payload).select('*').single()
     if (error) throw error
     return mapRow(data)
+  },
+
+  /** A single item the caller may see, or null. RLS decides visibility. */
+  async get(itemId: string): Promise<Item | null> {
+    const { data, error } = await supabase.from('items').select('*').eq('id', itemId).maybeSingle()
+    if (error) throw error
+    return data ? mapRow(data) : null
+  },
+
+  /** Apply a partial edit. RLS enforces who may edit which item (spec 4.2). */
+  async update(itemId: string, patch: ItemPatch): Promise<Item> {
+    const payload: TablesUpdate<'items'> = {}
+    if (patch.title !== undefined) payload.title = patch.title
+    if (patch.notes !== undefined) payload.notes = patch.notes
+    if (patch.startsAt !== undefined) payload.starts_at = patch.startsAt
+    if (patch.endsAt !== undefined) payload.ends_at = patch.endsAt
+    if (patch.allDay !== undefined) payload.all_day = patch.allDay
+    if (patch.assigneeId !== undefined) payload.assignee_id = patch.assigneeId
+    if (patch.color !== undefined) payload.color = patch.color
+    if (patch.visibility !== undefined) payload.visibility = patch.visibility
+    if (patch.revealOwner !== undefined) payload.reveal_owner = patch.revealOwner
+    if (patch.isDone !== undefined) payload.is_done = patch.isDone
+    const { data, error } = await supabase
+      .from('items')
+      .update(payload)
+      .eq('id', itemId)
+      .select('*')
+      .single()
+    if (error) throw error
+    return mapRow(data)
+  },
+
+  /** The explicit audience of a shared_with item (spec 3.2 / 4.3). */
+  async sharesByItem(itemId: string): Promise<ShareTargets> {
+    const { data, error } = await supabase
+      .from('item_shares')
+      .select('membership_id,group_id')
+      .eq('item_id', itemId)
+    if (error) throw error
+    const memberIds: string[] = []
+    const groupIds: string[] = []
+    for (const row of data ?? []) {
+      if (row.membership_id) memberIds.push(row.membership_id)
+      if (row.group_id) groupIds.push(row.group_id)
+    }
+    return { memberIds, groupIds }
+  },
+
+  /**
+   * Replace an item's audience wholesale: clear the existing shares and insert
+   * the given members and groups. Called only for shared_with items; the caller
+   * passes empty arrays for every other visibility so no stale rows linger.
+   */
+  async replaceShares(itemId: string, targets: ShareTargets): Promise<void> {
+    const { error: delError } = await supabase.from('item_shares').delete().eq('item_id', itemId)
+    if (delError) throw delError
+    const rows: TablesInsert<'item_shares'>[] = [
+      ...targets.memberIds.map((membership_id) => ({ item_id: itemId, membership_id })),
+      ...targets.groupIds.map((group_id) => ({ item_id: itemId, group_id })),
+    ]
+    if (!rows.length) return
+    const { error } = await supabase.from('item_shares').insert(rows)
+    if (error) throw error
   },
 
   async setDone(itemId: string, isDone: boolean): Promise<void> {

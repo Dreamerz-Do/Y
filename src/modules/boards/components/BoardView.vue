@@ -7,8 +7,17 @@ import { useSessionStore } from '@/stores/session'
 import { useBoardAccent } from '@/shared/composables/useBoardAccent'
 import { useTheme } from '@/shared/composables/useTheme'
 import { toRowView, busyBlockToRowView } from '@/modules/items/composables/itemView'
+import {
+  type ItemForm,
+  emptyForm,
+  itemToForm,
+  formToNewItem,
+  formToPatch,
+  formToAudience,
+} from '@/modules/items/composables/itemForm'
 import type { Item, ItemRowView } from '@/modules/items/types/item'
 import ItemRow from '@/modules/items/components/ItemRow.vue'
+import ItemEditor from '@/modules/items/components/ItemEditor.vue'
 import BottomNav, { type BoardTab } from '@/shared/ui/BottomNav.vue'
 
 const props = defineProps<{ boardId: string; tab?: BoardTab }>()
@@ -27,6 +36,12 @@ const captureOpen = ref(false)
 const captureText = ref('')
 const saving = ref(false)
 
+// The full create/edit sheet, distinct from the one-field quick capture.
+const editorOpen = ref(false)
+const editorMode = ref<'create' | 'edit'>('create')
+const editorForm = ref<ItemForm>(emptyForm())
+const editingId = ref<string | null>(null)
+
 onMounted(load)
 watch(() => props.boardId, load)
 watch(board, (b) => setHue(b?.accentHue ?? null), { immediate: true })
@@ -34,10 +49,15 @@ watch(board, (b) => setHue(b?.accentHue ?? null), { immediate: true })
 async function load(): Promise<void> {
   session.rememberBoard(props.boardId)
   if (!boardStore.boards.length) await boardStore.loadBoards()
-  await Promise.all([boardStore.loadMembers(props.boardId), itemStore.load(props.boardId)])
+  await Promise.all([
+    boardStore.loadMembers(props.boardId),
+    boardStore.loadGroups(props.boardId),
+    itemStore.load(props.boardId),
+  ])
 }
 
 const members = computed(() => boardStore.membersOf(props.boardId))
+const groups = computed(() => boardStore.groupsOf(props.boardId))
 
 function dayKey(iso: string): string {
   return new Date(iso).toISOString().slice(0, 10)
@@ -73,9 +93,58 @@ function goTo(tab: BoardTab): void {
   void router.push({ name: 'board', params: { boardId: props.boardId, tab } })
 }
 
-function openDetail(): void {
-  // Item detail/edit sheet is a follow-up screen (spec 7.6 #6). Opening it is
-  // wired here so the row's click target is not dead.
+// Open the full editor for an existing item. Busy blocks are someone else's
+// private items and carry no editable content, so they are ignored here.
+async function openDetail(row: ItemRowView): Promise<void> {
+  const item = itemStore.itemsOf(props.boardId).find((i) => i.id === row.id)
+  if (!item) return
+  const audience = item.visibility === 'shared_with' ? await itemStore.shares(item.id) : undefined
+  editorForm.value = itemToForm(item, audience)
+  editorMode.value = 'edit'
+  editingId.value = item.id
+  captureOpen.value = false
+  editorOpen.value = true
+}
+
+// Escalate a quick capture into the full editor, carrying the typed title.
+function openFullCreate(): void {
+  const form = emptyForm(board.value?.defaultVisibility)
+  form.title = captureText.value.trim()
+  editorForm.value = form
+  editorMode.value = 'create'
+  editingId.value = null
+  captureOpen.value = false
+  editorOpen.value = true
+}
+
+function closeEditor(): void {
+  editorOpen.value = false
+  editingId.value = null
+}
+
+async function saveEditor(form: ItemForm): Promise<void> {
+  saving.value = true
+  try {
+    if (editorMode.value === 'create') {
+      await itemStore.add(formToNewItem(form, props.boardId), formToAudience(form))
+    } else if (editingId.value) {
+      await itemStore.update(props.boardId, editingId.value, formToPatch(form), formToAudience(form))
+    }
+    closeEditor()
+  } finally {
+    saving.value = false
+  }
+}
+
+async function removeEditor(): Promise<void> {
+  if (!editingId.value) return
+  saving.value = true
+  try {
+    await itemStore.remove(props.boardId, editingId.value)
+    closeEditor()
+  } finally {
+    saving.value = false
+  }
 }
 
 async function toggleDone(item: Item): Promise<void> {
@@ -199,6 +268,26 @@ async function saveCapture(): Promise<void> {
       >
         {{ saving ? 'Bezig…' : 'Opslaan' }}
       </button>
+      <button
+        type="button"
+        class="h-touch text-body2 font-medium text-accent"
+        @click="openFullCreate"
+      >
+        Meer opties — datum, kleur, zichtbaarheid
+      </button>
     </div>
+
+    <!-- Full create/edit sheet -->
+    <ItemEditor
+      v-if="editorOpen"
+      :mode="editorMode"
+      :initial-form="editorForm"
+      :members="members"
+      :groups="groups"
+      :saving="saving"
+      @save="saveEditor"
+      @remove="removeEditor"
+      @close="closeEditor"
+    />
   </div>
 </template>

@@ -1,5 +1,6 @@
 import type { Member } from '@/modules/boards/types/board'
 import type { AvatarView, BusyBlock, Item, ItemRowView } from '../types/item'
+import { TIME_ZONE } from './itemDateTime'
 
 /**
  * Pure presentation helpers: map a domain Item (or a BusyBlock) to the view
@@ -17,7 +18,7 @@ import type { AvatarView, BusyBlock, Item, ItemRowView } from '../types/item'
 const HHMM = new Intl.DateTimeFormat('nl-NL', {
   hour: '2-digit',
   minute: '2-digit',
-  timeZone: 'Europe/Amsterdam',
+  timeZone: TIME_ZONE,
 })
 
 /** "17:00–17:45", or "Hele dag", or null for a dateless to-do. */
