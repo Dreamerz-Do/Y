@@ -6,6 +6,7 @@ import { useSessionStore } from '@/stores/session'
 import { useBoardAccent } from '@/shared/composables/useBoardAccent'
 import { boardDotCss } from '@/shared/lib/palette'
 import AppAvatar from '@/shared/ui/AppAvatar.vue'
+import PendingInvitations from '@/modules/invitations/components/PendingInvitations.vue'
 
 const boardStore = useBoardStore()
 const session = useSessionStore()
@@ -15,10 +16,12 @@ const { setHue } = useBoardAccent()
 // The overview belongs to no single board, so the chrome returns to neutral.
 setHue(null)
 
-onMounted(async () => {
+async function loadBoards(): Promise<void> {
   await boardStore.loadBoards()
   await Promise.all(boardStore.boards.map((b) => boardStore.loadMembers(b.id)))
-})
+}
+
+onMounted(loadBoards)
 
 const boards = computed(() => boardStore.boards)
 
@@ -32,9 +35,20 @@ function open(boardId: string): void {
   <div class="flex min-h-dvh flex-col">
     <header class="flex h-14 items-center justify-between border-b border-border px-3">
       <h1 class="text-screen font-medium">Boards</h1>
+      <button
+        type="button"
+        class="flex h-touch w-touch items-center justify-center rounded-full text-text"
+        aria-label="Account"
+        @click="router.push({ name: 'account' })"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>
+      </button>
     </header>
 
     <div class="flex-1 overflow-y-auto p-4">
+      <!-- Accepting an invitation adds a board, so refetch the list afterwards. -->
+      <PendingInvitations @accepted="loadBoards" />
+
       <h2 class="mb-2.5 text-label font-medium uppercase tracking-wide text-muted">Jouw boards</h2>
 
       <p v-if="!boards.length" class="py-2 text-body text-faint">

@@ -309,6 +309,16 @@ export type Database = {
         }
         Relationships: []
       }
+      my_pending_invitations: {
+        Row: {
+          id: string | null
+          board_id: string | null
+          board_name: string | null
+          role: Database['public']['Enums']['board_role'] | null
+          created_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_board_member: {
@@ -334,6 +344,22 @@ export type Database = {
       owner_count: {
         Args: { b: string }
         Returns: number
+      }
+      create_invitation: {
+        Args: {
+          b: string
+          target_email: string
+          target_role?: Database['public']['Enums']['board_role']
+        }
+        Returns: Database['public']['Tables']['invitations']['Row']
+      }
+      accept_invitation: {
+        Args: { inv: string }
+        Returns: undefined
+      }
+      delete_current_user: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
