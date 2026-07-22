@@ -1,67 +1,68 @@
-# Gezinsorganisatie-app
+# Household Organiser
 
-Gedeelde boards met taken en agenda-items voor volwassenen die samen een druk
-huishouden runnen. Per item is instelbaar wie het mag zien.
+Shared boards holding tasks and calendar items, for adults running a busy
+household together. Visibility is configurable per item.
 
-> **Status:** in ontwikkeling. De MVP is nog niet af.
+> **Status:** in development. The MVP is not finished.
 
-## Waarom
+## Why
 
-Coördinatie in een druk gezin zit verspreid over hoofden, appjes en losse
-agenda's. Deze app brengt het samen in één gedeeld overzicht, met twee
-uitgangspunten die de bestaande alternatieven niet hebben:
+Coordination in a busy household is scattered across people's heads, chat
+threads and separate calendars. This app brings it into one shared view, on two
+principles the existing alternatives do not offer:
 
-- **Offloaden in plaats van registreren.** Wat in je hoofd zit staat binnen
-  seconden in de app, en wat terugkeert hoeft niemand te bewaken.
-- **Privacy binnen het gezin.** Een gedeeld board betekent niet dat alles
-  gedeeld is. Zichtbaarheid is per item instelbaar, en de agenda blijft
-  bruikbaar doordat privé-afspraken als inhoudsloos "bezet"-blok verschijnen.
+- **Offloading rather than recording.** Whatever is in your head is in the app
+  within seconds, and anything recurring no longer needs anyone to watch it.
+- **Privacy inside the household.** A shared board does not mean everything is
+  shared. Visibility is set per item, and the calendar stays usable because
+  private appointments appear as a contentless "busy" block.
 
-Wat de app expliciet **niet** doet: taakverdeling meten, scores bijhouden of
-oordelen over wie meer doet.
+What the app deliberately does **not** do: measure how work is divided, keep
+scores, or pass judgement on who does more.
 
 ## Tech stack
 
-| Laag | Keuze |
+| Layer | Choice |
 |---|---|
 | Frontend | Vite, Vue 3, TypeScript, Pinia, Composition API |
-| Styling | Tailwind met headless componenten |
-| Mobiel | Capacitor (Android) |
+| Styling | Tailwind with headless components |
+| Mobile | Capacitor (Android) |
 | Backend | Supabase (Postgres, Auth, RLS) |
 | Hosting | Firebase Hosting |
-| Testen | Vitest, plus RLS-policytests tegen de database |
-| Regio | West-Europa, voor alle infrastructuur |
+| Testing | Vitest, plus RLS policy tests against the database |
+| Region | Western Europe, for all infrastructure |
 
-## Documentatie
+## Documentation
 
-| Document | Inhoud |
+| Document | Contents |
 |---|---|
-| [`docs/gezinsapp-spec.md`](docs/gezinsapp-spec.md) | Volledige specificatie: scope, features, domeinmodel, architectuur, design |
-| [`CLAUDE.md`](CLAUDE.md) | Projectinstructies voor Claude Code |
+| [`docs/spec.md`](docs/spec.md) | Full specification: scope, features, domain model, architecture, design |
+| [`CLAUDE.md`](CLAUDE.md) | Project instructions for Claude Code |
 
-De specificatie is de bron van waarheid voor gedrag en rechten. Wijkt de code
-ervan af, dan is dat een bug of een bewuste wijziging die eerst in het document
-landt.
+The specification is the source of truth for behaviour and permissions. Where
+the code diverges from it, that is either a bug or a deliberate change that
+lands in the document first.
 
-## Aan de slag
+## Getting started
 
-Vereist: Node 22 of hoger, npm, en de Supabase CLI.
+Requires Node 22 or higher, npm, and the Supabase CLI.
 
 ```bash
 npm install
-cp .env.example .env.local   # vul de waarden in
+cp .env.example .env.local   # fill in the values
 npm run dev
 ```
 
-Benodigde omgevingsvariabelen:
+Required environment variables:
 
-| Variabele | Toelichting |
+| Variable | Description |
 |---|---|
-| `VITE_SUPABASE_URL` | URL van het Supabase-project |
-| `VITE_SUPABASE_ANON_KEY` | Publieke anon key |
-| `VITE_APP_ENV` | `development` of `production` |
+| `VITE_SUPABASE_URL` | URL of the Supabase project |
+| `VITE_SUPABASE_ANON_KEY` | Public anon key |
+| `VITE_APP_ENV` | `development` or `production` |
 
-De **service key hoort hier niet bij** en komt nooit in clientcode of in de repo.
+The **service key is not among these** and never belongs in client code or in
+the repository.
 
 ## Scripts
 
@@ -74,55 +75,55 @@ npm run typecheck
 npm run build
 ```
 
-## Projectstructuur
+## Project structure
 
 ```
 src/
-  modules/            # domeingericht: auth, boards, items, invitations
+  modules/            # domain-oriented: auth, boards, items, invitations
     <module>/
       components/
       composables/
-      api/            # enige plek met supabase-aanroepen
+      api/            # the only place with supabase calls
       types/
   shared/             # ui, composables, lib, types
   router/
-  stores/             # alleen cross-cutting state
+  stores/             # cross-cutting state only
   app/
 supabase/
-  migrations/         # schema en RLS-policies, onder versiebeheer
+  migrations/         # schema and RLS policies, under version control
 docs/
 ```
 
-Testbestanden staan naast de code die ze testen: `itemRepository.ts` naast
+Test files sit next to the code they cover: `itemRepository.ts` alongside
 `itemRepository.spec.ts`.
 
-## Branches en omgevingen
+## Branches and environments
 
-| Branch | Doel | Omgeving |
+| Branch | Purpose | Environment |
 |---|---|---|
-| `feature/*` | Losse wijziging, kortlevend | — |
-| `develop` | Integratie en feature-testing | Development |
-| `main` | Productie | Productie |
+| `feature/*` | A single change, short-lived | — |
+| `develop` | Integration and feature testing | Development |
+| `main` | Production | Production |
 
-Feature branch vertakt van `develop` en gaat via PR terug. Na QA op de
-development-omgeving volgt een PR van `develop` naar `main` met code review.
+A feature branch forks from `develop` and returns via PR. After QA on the
+development environment, a PR goes from `develop` into `main` with code review.
 
-Commits volgen [Conventional Commits](https://www.conventionalcommits.org/):
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`.
 
-Migraties draaien altijd eerst op development. Een migratie die op productie is
-toegepast wordt nooit bewerkt — corrigeren gebeurt met een nieuwe migratie.
+Migrations always run on development first. A migration already applied to
+production is never edited — corrections happen in a new migration.
 
 ## Privacy
 
-Leidend principe: **data die niet voor een gebruiker bedoeld is, mag die
-gebruiker nooit bereiken.** Niet in een API-respons, niet in een realtime-event,
-niet in een pushbericht, niet in een cache, niet in een logregel.
+Guiding principle: **data not intended for a user must never reach that user.**
+Not in an API response, not in a realtime event, not in a push message, not in a
+cache, not in a log line.
 
-Zichtbaarheid wordt afgedwongen in de database via RLS-policies, niet in de
-frontend. Productiedata wordt nooit gekopieerd naar development.
+Visibility is enforced in the database through RLS policies, not in the
+frontend. Production data is never copied into development.
 
-## Toegankelijkheid
+## Accessibility
 
-Doel is WCAG 2.2 niveau AA, met EN 301 549 als kader. Zie sectie 7.8 van de
-specificatie voor de concrete eisen.
+Target is WCAG 2.2 level AA, with EN 301 549 as the framework. See section 7.8
+of the specification for the concrete requirements.
