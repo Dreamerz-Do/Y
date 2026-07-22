@@ -361,6 +361,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      create_board: {
+        Args: { board_name: string; accent?: number }
+        Returns: Database['public']['Tables']['boards']['Row']
+      }
     }
     Enums: {
       board_role: 'owner' | 'member' | 'guest'

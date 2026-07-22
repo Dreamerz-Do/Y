@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/lib/supabaseClient'
-import type { Tables, TablesInsert } from '@/shared/types/database'
+import type { Tables } from '@/shared/types/database'
 import { hueFromId } from '@/shared/lib/palette'
 import type { Board, Member, Role } from '../types/board'
 
@@ -48,14 +48,18 @@ export const boardRepository = {
   },
 
   async create(name: string, accentHue: number): Promise<Board> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
-    const payload: TablesInsert<'boards'> = { name, accent_hue: accentHue, created_by: user.id }
-    const { data, error } = await supabase.from('boards').insert(payload).select('*').single()
+    // The insert runs inside the create_board SECURITY DEFINER function so the
+    // returned row is not gated by the boards SELECT policy — which would
+    // otherwise reject it, because the creator's owner membership is only added
+    // by the on_board_created AFTER-INSERT trigger and is not visible during a
+    // client-side .insert().select() RETURNING. The database still generates the
+    // id (spec 6.3: the schema is the source of truth).
+    const { data, error } = await supabase.rpc('create_board', {
+      board_name: name,
+      accent: accentHue,
+    })
     if (error) throw error
-    return mapBoard(data)
+    return mapBoard(data as Tables<'boards'>)
   },
 
   async members(boardId: string): Promise<Member[]> {
