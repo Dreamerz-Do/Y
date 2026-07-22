@@ -1,32 +1,33 @@
 # CLAUDE.md
 
-Projectinstructies voor Claude Code. Lees dit voordat je iets wijzigt.
+Project instructions for Claude Code. Read this before changing anything.
 
-## Bron van waarheid
+## Source of truth
 
-De volledige specificatie staat in [`docs/gezinsapp-spec.md`](docs/gezinsapp-spec.md).
-Dat document beschrijft gedrag, rechten en scope. Wijk er niet van af — meld een
-discrepantie in plaats van hem stilzwijgend op te lossen.
+The full specification lives in [`docs/spec.md`](docs/spec.md). That document
+describes behaviour, permissions and scope. Do not deviate from it — report a
+discrepancy instead of quietly resolving it.
 
-Belangrijkste secties:
+Key sections:
 
-| Onderwerp | Sectie |
+| Topic | Section |
 |---|---|
-| MVP-scope | 2 |
-| Zichtbaarheid van items | 3.2 |
-| Domeinmodel | 4.1 |
-| Autorisatiematrix | 4.2 |
-| Architectuur | 6 |
+| MVP scope | 2 |
+| Item visibility | 3.2 |
+| Domain model | 4.1 |
+| Authorisation matrix | 4.2 |
+| Architecture | 6 |
 | Design | 7 |
-| Bouwinstructies | 9 |
+| Build instructions | 9 |
 
-## Wat dit project is
+## What this project is
 
-Een gezinsorganisatie-app: gedeelde boards met taken en agenda-items, waarbij per
-item instelbaar is wie het mag zien. Vue 3 + TypeScript + Vite, Capacitor voor
-Android, Supabase (Postgres) als backend. Alle infrastructuur in West-Europa.
+A household organiser: shared boards holding tasks and calendar items, where
+visibility is configurable per item. Vue 3 + TypeScript + Vite, Capacitor for
+Android, Supabase (Postgres) as the backend. All infrastructure in Western
+Europe.
 
-## Commando's
+## Commands
 
 ```bash
 npm install
@@ -37,36 +38,39 @@ npm run lint
 npm run typecheck
 npm run build
 
-npx supabase db push          # migraties toepassen
+npx supabase db push          # apply migrations
 npx supabase gen types typescript --local > src/shared/types/database.ts
 ```
 
-## Harde regels
+## Hard rules
 
-Deze zijn niet onderhandelbaar. Code die hiermee botst is fout, ook als hij werkt.
+Non-negotiable. Code that conflicts with these is wrong, even when it works.
 
-1. **Elke query is board-scoped.** Autorisatie is altijd (user, board), nooit alleen user.
-2. **Zichtbaarheid wordt in de database afgedwongen**, via RLS-policies. Filteren in
-   de frontend is geen implementatie maar een bug.
-3. **Nooit domeininhoud in een notificatiepayload.** Alleen een neutrale aanduiding.
-4. **Geen persoonsgegevens in logs.** Identifiers wel, titels en e-mailadressen niet.
-5. **Geen onderscheid tussen "bestaat niet" en "geen toegang"** in foutmeldingen.
-6. **Betekenis nooit uitsluitend via kleur.**
-7. **De service key komt nooit in clientcode of in een workflow die door een fork
-   getriggerd kan worden.**
+1. **Every query is board-scoped.** Authorisation is always (user, board), never
+   user alone.
+2. **Visibility is enforced in the database**, through RLS policies. Filtering in
+   the frontend is not an implementation — it is a bug.
+3. **Never put domain content in a notification payload.** A neutral indicator
+   only.
+4. **No personal data in logs.** Identifiers yes; titles and email addresses no.
+5. **No distinction between "not found" and "no access"** in error messages.
+6. **Meaning is never carried by colour alone.**
+7. **The service key never appears in client code**, nor in a workflow a fork can
+   trigger.
 
-## Codeconventies
+## Code conventions
 
-- TypeScript in `strict`-modus. Geen `any`, geen `@ts-ignore` zonder toelichting.
-- **Composition API met `<script setup>`. Options API is niet toegestaan.**
-- Databasetypes worden gegenereerd, nooit handmatig geschreven.
-- Geen `supabase`-aanroepen in componenten of stores — alleen in de repository-laag
-  van een module.
-- Eén store bevat óf clientstate óf serverdata van één domein.
-- Nederlands in de UI, Engels in code en commits.
-- Geen nieuwe dependency zonder dat expliciet voor te leggen.
+- TypeScript in `strict` mode. No `any`, no `@ts-ignore` without an inline
+  justification.
+- **Composition API with `<script setup>`. Options API is not permitted.**
+- Database types are generated, never hand-written.
+- No `supabase` calls in components or stores — only in a module's repository
+  layer.
+- A store holds either client state or server data for one domain, never both.
+- Dutch in the UI, English in code, comments, docs and commits.
+- No new dependency without raising it explicitly first.
 
-## Mappenstructuur
+## Folder structure
 
 ```
 src/
@@ -81,48 +85,49 @@ src/
 docs/
 ```
 
-Modules praten met elkaar via expliciete exports, niet dwars door elkaars interne
-bestanden.
+Modules talk to each other through explicit exports, never by reaching into each
+other's internal files.
 
 ## Tests
 
-- **Elk bestand en elke functionaliteit wordt getest** met Vitest.
-- Specfile staat naast het bestand: `itemRepository.ts` → `itemRepository.spec.ts`.
-- **Elke test volgt Arrange, Act, Assert**, in die volgorde en zichtbaar gescheiden.
-  Eén handeling per test; is er een tweede Act nodig, dan is het een tweede test.
-- RLS-policies worden apart getest tegen de database, per rol en per actie uit de
-  autorisatiematrix. Een policy zonder test geldt als niet aanwezig.
+- **Every file and every piece of functionality is tested** with Vitest.
+- The spec file sits next to the file it tests: `itemRepository.ts` →
+  `itemRepository.spec.ts`.
+- **Every test follows Arrange, Act, Assert**, in that order and visibly
+  separated. One action per test; if a second Act is needed, it is a second test.
+- RLS policies are tested separately against the database, per role and per
+  action from the authorisation matrix. A policy without a test counts as absent.
 
-## Werkwijze per taak
+## Working method per task
 
-1. Migratie eerst: schemawijziging en RLS-policy in hetzelfde migratiebestand.
-2. Types opnieuw genereren.
-3. Repository-laag, dan composable, dan component.
-4. Tests bij de wijziging, niet erna.
-5. Kleine, afgeronde eenheden. Liever vijf kleine wijzigingen dan één grote.
+1. Migration first: schema change and RLS policy in the same migration file.
+2. Regenerate types.
+3. Repository layer, then composable, then component.
+4. Tests alongside the change, not afterwards.
+5. Small, complete units. Five small changes beat one large one.
 
-## Branches en releases
+## Branches and releases
 
-- `feature/*` vertakt van `develop`, PR terug naar `develop`
-- `develop` deployt naar de development-omgeving
-- `main` deployt naar productie, alleen via PR vanaf `develop` na QA en review
+- `feature/*` branches from `develop`, PR back into `develop`
+- `develop` deploys to the development environment
+- `main` deploys to production, only via PR from `develop` after QA and review
 - Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`
-- Migraties draaien altijd eerst op development. Een migratie die op productie is
-  toegepast wordt nooit bewerkt; corrigeren gebeurt met een nieuwe migratie.
+- Migrations always run on development first. A migration already applied to
+  production is never edited; corrections happen in a new migration.
 
 ## Definition of done
 
-- Voldoet aan de harde regels en de codeconventies
-- Migraties en policies staan in de repo en zijn getest
-- De relevante rijen uit de autorisatiematrix zijn afgedekt met tests
-- Toegankelijkheid gecontroleerd: contrast, focus, aanraakvlak, schermlezerlabel
-- Zowel de webbuild als de Android-build draait
-- Geen persoonsgegevens in logs of foutmeldingen
+- Meets the hard rules and the code conventions
+- Migrations and policies are in the repo and tested
+- The relevant rows of the authorisation matrix are covered by tests
+- Accessibility checked: contrast, focus, touch target, screen reader label
+- Both the web build and the Android build run
+- No personal data in logs or error messages
 
-## Niet zonder overleg
+## Not without discussion
 
-- Wijzigen van de stack of toevoegen van dependencies
-- Versoepelen of omzeilen van een RLS-policy, ook tijdelijk om te debuggen
-- Uitbreiden van het datamodel
-- Toevoegen van features buiten de MVP-lijst
-- Productiedata kopiëren naar development
+- Changing the stack or adding dependencies
+- Relaxing or bypassing an RLS policy, including temporarily for debugging
+- Extending the data model
+- Adding features outside the MVP list
+- Copying production data into development
