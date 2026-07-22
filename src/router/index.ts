@@ -7,6 +7,12 @@ const routes: RouteRecordRaw[] = [
   { path: '/login', name: 'login', component: () => import('@/modules/auth/components/LoginView.vue') },
   { path: '/', name: 'boards', component: () => import('@/modules/boards/components/BoardsView.vue') },
   {
+    path: '/b/:boardId/members',
+    name: 'board-members',
+    component: () => import('@/modules/boards/components/MembersView.vue'),
+    props: true,
+  },
+  {
     path: '/b/:boardId/:tab(today|agenda|todos)?',
     name: 'board',
     component: () => import('@/modules/boards/components/BoardView.vue'),

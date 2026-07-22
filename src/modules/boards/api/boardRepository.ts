@@ -66,4 +66,21 @@ export const boardRepository = {
     if (error) throw error
     return ((data ?? []) as unknown as MembershipWithProfile[]).map(mapMember)
   },
+
+  /** Change a member's role — owner-only by RLS. The last-owner guard (a
+   * database trigger) blocks demoting the sole owner (spec 4.2 / 4.5). */
+  async updateRole(membershipId: string, role: Role): Promise<void> {
+    const { error } = await supabase
+      .from('memberships')
+      .update({ role })
+      .eq('id', membershipId)
+    if (error) throw error
+  },
+
+  /** Remove a membership. RLS allows an owner to remove anyone, or a member to
+   * remove themselves (leaving, spec 4.5); the guard keeps one owner. */
+  async removeMember(membershipId: string): Promise<void> {
+    const { error } = await supabase.from('memberships').delete().eq('id', membershipId)
+    if (error) throw error
+  },
 }
