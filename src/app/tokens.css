@@ -1,0 +1,90 @@
+/*
+ * Design tokens — imported from the Claude Design project
+ * "Gezinsorganisatie App" (Design Tokens.dc.html). Single source of truth for
+ * colour, spacing, radius and typography. Spec 7.9.
+ *
+ * Colour uses OKLCH throughout so light and dark stay perceptually matched.
+ * The board accent is derived from a single hue (--board-hue) that the active
+ * board sets at runtime — colour channel 1 in spec 7.3 (app chrome only).
+ */
+
+:root {
+  /* Board accent hue — overridden per board. Default 215 (blue). */
+  --board-hue: 215;
+
+  /* Neutral base — light */
+  --color-bg: oklch(97% 0.006 85);
+  --color-surface: oklch(99% 0.003 85);
+  --color-surface-2: oklch(93% 0.006 85);
+  --color-border: oklch(86% 0.006 85);
+  --color-text: oklch(22% 0.01 85);
+  --color-text-muted: oklch(46% 0.01 85);
+  --color-text-faint: oklch(60% 0.01 85);
+  --color-danger: oklch(48% 0.15 25);
+
+  /* Board accent — light */
+  --color-accent: oklch(46% 0.09 var(--board-hue));
+  --color-accent-text: oklch(98% 0.005 var(--board-hue));
+
+  /* Overlay behind bottom sheets */
+  --color-overlay: rgba(20, 20, 20, 0.45);
+
+  /* Focus ring — deliberately independent of the board accent (spec 7.8) */
+  --color-focus: oklch(60% 0.17 250);
+
+  /* Spacing scale (px) */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 24px;
+  --space-10: 28px;
+
+  /* Radius scale */
+  --radius-focus: 6px;
+  --radius-badge: 10px;
+  --radius-input: 12px;
+  --radius-card: 14px;
+  --radius-board: 16px;
+  --radius-sheet: 24px;
+  --radius-full: 999px;
+
+  /* Minimum touch target (spec 7.5) */
+  --touch-min: 44px;
+}
+
+/* Dark tokens: applied by system preference, unless a theme is pinned. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: oklch(19% 0.008 260);
+    --color-surface: oklch(24% 0.008 260);
+    --color-surface-2: oklch(29% 0.01 260);
+    --color-border: oklch(34% 0.01 260);
+    --color-text: oklch(95% 0.004 260);
+    --color-text-muted: oklch(72% 0.006 260);
+    --color-text-faint: oklch(58% 0.006 260);
+    --color-danger: oklch(70% 0.13 25);
+    --color-accent: oklch(58% 0.1 var(--board-hue));
+    --color-accent-text: oklch(14% 0.01 var(--board-hue));
+    --color-overlay: rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* Explicit dark, chosen by the user's theme toggle — wins over system. */
+:root[data-theme='dark'] {
+  --color-bg: oklch(19% 0.008 260);
+  --color-surface: oklch(24% 0.008 260);
+  --color-surface-2: oklch(29% 0.01 260);
+  --color-border: oklch(34% 0.01 260);
+  --color-text: oklch(95% 0.004 260);
+  --color-text-muted: oklch(72% 0.006 260);
+  --color-text-faint: oklch(58% 0.006 260);
+  --color-danger: oklch(70% 0.13 25);
+  --color-accent: oklch(58% 0.1 var(--board-hue));
+  --color-accent-text: oklch(14% 0.01 var(--board-hue));
+  --color-overlay: rgba(0, 0, 0, 0.55);
+}

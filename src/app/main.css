@@ -1,0 +1,33 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Roboto', system-ui, sans-serif;
+    /* Respect the OS text-size setting, including in the Capacitor webview. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    min-height: 100vh;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Visible focus, never obscured by overlays (spec 7.8). */
+  :focus-visible {
+    outline: 2.5px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-focus);
+  }
+}

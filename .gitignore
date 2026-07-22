@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment — never commit real values
+.env
+.env.local
+.env.*.local
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Capacitor native platform (generated)
+android/
+ios/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+
+# Credentials that CI writes at runtime, never in the repo
+gcp-key.json
