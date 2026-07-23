@@ -6,6 +6,12 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Playwright e2e artifacts
+e2e/__screens__/
+e2e/.output/
+playwright-report/
+test-results/
+
 # Environment — never commit real values
 .env
 .env.local
