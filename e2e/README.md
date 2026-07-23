@@ -1,7 +1,15 @@
-# End-to-end / visual walkthrough
+# End-to-end walkthrough
 
-A Playwright suite that drives the real app and screenshots every MVP screen, so
-the UI can actually be looked at — in CI or locally — without a backend.
+A Playwright suite that drives the real app without a backend, in two parts:
+
+- **`screens.spec.ts`** — screenshots every MVP screen into `e2e/__screens__/`,
+  so the UI can actually be looked at (in CI those land as the `e2e-screens`
+  build artifact).
+- **`interactions.spec.ts`** — asserts the exact Supabase call each action
+  fires: sign-in posts credentials, creating a board calls `create_board`, quick
+  capture inserts an item, ticking a to-do patches `is_done`, inviting a member
+  calls `create_invitation`. Where the screenshots prove a screen *renders*, this
+  proves it is *wired*.
 
 ## Why it's offline
 
@@ -30,4 +38,6 @@ hit). Screenshots land in `e2e/__screens__/` (git-ignored).
 
 The browser binary is the one already installed in the environment; its revision
 need not match `@playwright/test`. Override the path with
-`PLAYWRIGHT_CHROMIUM_PATH` if it lives elsewhere.
+`PLAYWRIGHT_CHROMIUM_PATH` if it lives elsewhere. In CI there is no such path, so
+`npx playwright install chromium` provides the managed browser and the config
+resolves it automatically (see the `e2e` job in `.github/workflows/ci.yml`).

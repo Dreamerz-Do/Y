@@ -170,28 +170,44 @@ function json(route: Route, body: unknown, status = 200): Promise<void> {
   })
 }
 
-/** Seed a non-expired fake session so the auth guard treats us as signed in. */
-export async function seedSession(page: Page): Promise<void> {
+/** Parse a request's JSON body, tolerating an empty one. */
+function reqBody(route: Route): Record<string, unknown> {
+  try {
+    return (route.request().postDataJSON() as Record<string, unknown>) ?? {}
+  } catch {
+    return {}
+  }
+}
+
+function userObject() {
+  return {
+    id: USER.id,
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: USER.email,
+    app_metadata: { provider: 'email' },
+    user_metadata: { display_name: USER.display_name },
+    created_at: '2026-01-01T00:00:00Z',
+  }
+}
+
+function sessionObject() {
   const farFuture = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365
-  const session = {
+  return {
     access_token: 'mock-access-token',
     refresh_token: 'mock-refresh-token',
     token_type: 'bearer',
     expires_in: 3600,
     expires_at: farFuture,
-    user: {
-      id: USER.id,
-      aud: 'authenticated',
-      role: 'authenticated',
-      email: USER.email,
-      app_metadata: { provider: 'email' },
-      user_metadata: { display_name: USER.display_name },
-      created_at: '2026-01-01T00:00:00Z',
-    },
+    user: userObject(),
   }
+}
+
+/** Seed a non-expired fake session so the auth guard treats us as signed in. */
+export async function seedSession(page: Page): Promise<void> {
   await page.addInitScript(
     ([key, value]) => window.localStorage.setItem(key, value),
-    [STORAGE_KEY, JSON.stringify(session)] as const,
+    [STORAGE_KEY, JSON.stringify(sessionObject())] as const,
   )
 }
 
@@ -208,17 +224,10 @@ export async function mockSupabase(
 
   await page.route('**/auth/v1/**', (route) => {
     const url = route.request().url()
-    if (url.includes('/user')) {
-      return json(route, {
-        id: USER.id,
-        aud: 'authenticated',
-        role: 'authenticated',
-        email: USER.email,
-        app_metadata: { provider: 'email' },
-        user_metadata: { display_name: USER.display_name },
-      })
-    }
-    // logout, token refresh, etc.
+    if (url.includes('/user')) return json(route, userObject())
+    // token (password / refresh grant): return a full session.
+    if (url.includes('/token')) return json(route, sessionObject())
+    // logout and anything else.
     return json(route, {})
   })
 
@@ -226,6 +235,34 @@ export async function mockSupabase(
     const url = new URL(route.request().url())
     const path = url.pathname.replace(/^.*\/rest\/v1\//, '')
     const table = path.split('?')[0]
+    const method = route.request().method()
+
+    // RPCs are POSTed to rest/v1/rpc/<fn> and return a single row.
+    if (table.startsWith('rpc/')) {
+      const fn = table.slice('rpc/'.length)
+      if (fn === 'create_board') {
+        const body = reqBody(route)
+        return json(route, {
+          ...BOARDS[0],
+          id: 'e2e-board',
+          name: (body.board_name as string) ?? 'Nieuw board',
+          accent_hue: (body.accent as number) ?? 215,
+        })
+      }
+      if (fn === 'create_invitation') {
+        const body = reqBody(route)
+        return json(route, {
+          id: 'e2e-inv',
+          board_id: (body.b as string) ?? 'board-1',
+          email: (body.target_email as string) ?? 'x@example.com',
+          role: (body.target_role as string) ?? 'member',
+          status: 'pending',
+          invited_by: USER.id,
+          created_at: '2026-07-23T00:00:00Z',
+        })
+      }
+      return json(route, null)
+    }
 
     switch (table) {
       case 'boards':
@@ -237,6 +274,10 @@ export async function mockSupabase(
       case 'group_members':
         return json(route, [])
       case 'items':
+        // A write (insert/update) uses .select().single(): echo one full row.
+        if (method === 'POST' || method === 'PATCH') {
+          return json(route, { ...ITEMS[0], id: 'e2e-item', ...reqBody(route) })
+        }
         return json(route, items)
       case 'calendar_busy_blocks':
         return json(route, [])
@@ -247,8 +288,6 @@ export async function mockSupabase(
       case 'invitations':
         return json(route, [])
       default:
-        // rpc/<fn> and anything unmapped: answer benignly.
-        if (path.startsWith('rpc/create_board')) return json(route, boards[0] ?? BOARDS[0])
         return json(route, [])
     }
   })
