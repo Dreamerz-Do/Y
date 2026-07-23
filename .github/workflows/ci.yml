@@ -37,6 +37,37 @@ jobs:
       - name: Build
         run: npm run build
 
+  # End-to-end walkthrough (e2e/): drive the real app against a mocked Supabase
+  # and both screenshot every screen and assert each action's Supabase call. No
+  # backend and no secrets — every request is intercepted (see e2e/fixtures.ts).
+  # This is a view/wiring harness; authorisation stays with the rls-policies job.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e
+        run: npm run test:e2e
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screens
+          path: e2e/__screens__/
+          if-no-files-found: ignore
+
   # RLS policy tests (spec 9.8): run the pgTAP suite in supabase/tests against a
   # throwaway local instance, never against the development environment. The
   # matrix in spec 4.2 is the specification — "a policy without a test counts as
