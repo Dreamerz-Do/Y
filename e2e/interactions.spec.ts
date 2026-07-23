@@ -103,4 +103,19 @@ test.describe('interactions', () => {
     // Assert
     expect(rpcReq.postDataJSON()).toMatchObject({ target_email: 'nieuw@example.com' })
   })
+
+  test('the account icon reaches the logout screen by touch', async ({ page }) => {
+    // Arrange
+    await seedSession(page)
+    await mockSupabase(page)
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Boards', exact: true })).toBeVisible()
+
+    // Act — a tap, not a click: the reported failure was touch-only.
+    await page.tap('button[aria-label="Account"]')
+
+    // Assert
+    await expect(page).toHaveURL(/\/account$/)
+    await expect(page.getByRole('button', { name: 'Uitloggen' })).toBeVisible()
+  })
 })
