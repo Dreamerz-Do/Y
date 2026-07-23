@@ -34,7 +34,7 @@ watch(
 
 const visibilities: { value: Visibility; label: string; hint: string }[] = [
   { value: 'board', label: 'Iedereen', hint: 'Zichtbaar voor het hele board' },
-  { value: 'private', label: 'Privé', hint: 'Alleen jij' },
+  { value: 'private', label: 'Alleen ik', hint: 'Niet zichtbaar voor anderen' },
   { value: 'shared_with', label: 'Selectie', hint: 'Specifieke leden of groepen' },
 ]
 

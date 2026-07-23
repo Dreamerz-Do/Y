@@ -94,16 +94,29 @@ test.describe('authenticated', () => {
     await shot(page, '06-board-today')
   })
 
-  test('board — agenda tab', async ({ page }) => {
+  test('board — agenda tab (list)', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
 
     // Act
     await page.goto('/b/board-1/agenda')
-    await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Lijst' })).toBeVisible()
 
     // Assert
-    await shot(page, '07-board-agenda')
+    await shot(page, '07-board-agenda-list')
+  })
+
+  test('board — agenda tab (month)', async ({ page }) => {
+    // Arrange
+    await mockSupabase(page)
+    await page.goto('/b/board-1/agenda')
+
+    // Act
+    await page.getByRole('button', { name: 'Maand' }).click()
+    await expect(page.getByRole('button', { name: 'Volgende maand' })).toBeVisible()
+
+    // Assert
+    await shot(page, '08-board-agenda-month')
   })
 
   test('board — to-dos tab', async ({ page }) => {
@@ -115,7 +128,7 @@ test.describe('authenticated', () => {
     await expect(page.getByRole('heading', { name: 'Te doen' })).toBeVisible()
 
     // Assert
-    await shot(page, '08-board-todos')
+    await shot(page, '09-board-todos')
   })
 
   test('quick capture sheet', async ({ page }) => {
@@ -129,10 +142,10 @@ test.describe('authenticated', () => {
     await expect(page.getByRole('dialog', { name: 'Nieuw item' })).toBeVisible()
 
     // Assert
-    await shot(page, '09-quick-capture')
+    await shot(page, '10-quick-capture')
   })
 
-  test('full item editor', async ({ page }) => {
+  test('quick capture — details expanded inline', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
     await page.goto('/b/board-1/today')
@@ -140,11 +153,25 @@ test.describe('authenticated', () => {
     await expect(page.getByRole('dialog', { name: 'Nieuw item' })).toBeVisible()
 
     // Act
-    await page.getByRole('button', { name: /Meer opties/ }).click()
+    await page.getByRole('button', { name: '+ Details toevoegen' }).click()
+    await expect(page.getByText('Zichtbaar voor')).toBeVisible()
 
     // Assert
-    await page.waitForTimeout(200)
-    await shot(page, '10-item-editor')
+    await shot(page, '11-capture-details')
+  })
+
+  test('full item editor (existing item)', async ({ page }) => {
+    // Arrange
+    await mockSupabase(page)
+    await page.goto('/b/board-1/today')
+    await expect(page.getByText('Tandarts Sanne')).toBeVisible()
+
+    // Act
+    await page.getByText('Tandarts Sanne').click()
+    await expect(page.getByRole('dialog', { name: 'Item bewerken' })).toBeVisible()
+
+    // Assert
+    await shot(page, '12-item-editor')
   })
 
   test('members and groups', async ({ page }) => {
@@ -156,7 +183,7 @@ test.describe('authenticated', () => {
     await expect(page.getByRole('heading', { name: 'Leden', exact: true })).toBeVisible()
 
     // Assert
-    await shot(page, '11-members')
+    await shot(page, '13-members')
   })
 
   test('account screen', async ({ page }) => {
@@ -168,6 +195,6 @@ test.describe('authenticated', () => {
     await page.waitForLoadState('networkidle')
 
     // Assert
-    await shot(page, '12-account')
+    await shot(page, '14-account')
   })
 })
