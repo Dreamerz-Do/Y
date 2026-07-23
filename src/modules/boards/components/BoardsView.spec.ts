@@ -49,7 +49,7 @@ describe('BoardsView', () => {
 
     // Assert
     expect(create).toHaveBeenCalledWith('Huishouden', expect.any(Number))
-    expect(push).toHaveBeenCalledWith({ name: 'board', params: { boardId: 'new-board', tab: 'today' } })
+    expect(push).toHaveBeenCalledWith({ name: 'board', params: { boardId: 'new-board', tab: 'kalender' } })
   })
 
   it('reaches the account screen from the header icon', async () => {

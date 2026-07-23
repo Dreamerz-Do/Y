@@ -20,7 +20,6 @@ import {
   monthMatrix,
   monthLabel,
   addMonth,
-  addDays,
   localDay,
 } from '@/modules/items/composables/agendaMonth'
 import { todayInZone } from '@/modules/items/composables/itemDateTime'
@@ -40,7 +39,7 @@ const router = useRouter()
 const { setHue } = useBoardAccent()
 const { toggle: toggleTheme } = useTheme()
 
-const activeTab = computed<BoardTab>(() => props.tab ?? 'today')
+const activeTab = computed<BoardTab>(() => props.tab ?? 'kalender')
 const board = computed(() => boardStore.boardById(props.boardId))
 
 const captureOpen = ref(false)
@@ -70,11 +69,9 @@ const members = computed(() => boardStore.membersOf(props.boardId))
 const groups = computed(() => boardStore.groupsOf(props.boardId))
 
 const todayKey = todayInZone()
-const weekEnd = addDays(todayKey, 7)
 
-// Calendar rows: dated visible items and content-free busy blocks, merged and
-// sorted by start time. Busy blocks come from a separate projection so no
-// private content is ever present here (spec 3.2).
+// Dated visible items and content-free busy blocks, merged. Busy blocks come
+// from a separate projection so no private content is ever present (spec 3.2).
 const calendarRows = computed<(ItemRowView & { sortKey: string; key: string })[]>(() => {
   const dated = itemStore
     .itemsOf(props.boardId)
@@ -83,32 +80,13 @@ const calendarRows = computed<(ItemRowView & { sortKey: string; key: string })[]
   const busy = itemStore
     .busyOf(props.boardId)
     .map((b) => ({ ...busyBlockToRowView(b), sortKey: b.startsAt, key: `busy-${b.id}` }))
-  return [...dated, ...busy].sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+  return [...dated, ...busy]
 })
 
-const todayRows = computed(() => calendarRows.value.filter((r) => localDay(r.sortKey) === todayKey))
-const weekRows = computed(() =>
-  calendarRows.value.filter((r) => {
-    const day = localDay(r.sortKey)
-    return day > todayKey && day <= weekEnd
-  }),
-)
-
-const todoRows = computed(() => {
-  const todos = itemStore.itemsOf(props.boardId).filter((i) => !i.startsAt)
-  return {
-    open: todos.filter((i) => !i.isDone).map((i) => ({ view: toRowView(i, members.value), item: i })),
-    done: todos.filter((i) => i.isDone).map((i) => ({ view: toRowView(i, members.value), item: i })),
-  }
-})
-
-// --- Agenda: list or month (spec 7.6 #3) ---
-const agendaView = ref<'list' | 'month'>('list')
+// --- Kalender: a month calendar; tapping a day with items opens a sheet ---
 const today = todayInZone()
 const calYear = ref(Number(today.slice(0, 4)))
 const calMonth = ref(Number(today.slice(5, 7)))
-const selectedDay = ref(today)
-
 const monthTitle = computed(() => monthLabel(calYear.value, calMonth.value))
 const weekdayLabels = WEEKDAY_LABELS
 
@@ -117,24 +95,15 @@ const monthCells = computed(() =>
     const rows = calendarRows.value.filter((r) => localDay(r.sortKey) === cell.iso)
     const dots = rows.slice(0, 3).map((r) => (r.color ? itemColorCss(r.color) : 'var(--color-text-faint)'))
     const [y, m, d] = cell.iso.split('-').map(Number)
-    const count = rows.length
     return {
       ...cell,
       dots,
+      hasItems: rows.length > 0,
       isToday: cell.iso === todayKey,
-      isSelected: cell.iso === selectedDay.value,
-      label: `${d} ${monthLabel(y, m)}${count ? `, ${count} ${count === 1 ? 'item' : 'items'}` : ''}`,
+      label: `${d} ${monthLabel(y, m)}${rows.length ? `, ${rows.length} ${rows.length === 1 ? 'item' : 'items'}` : ''}`,
     }
   }),
 )
-
-const selectedRows = computed(() => calendarRows.value.filter((r) => localDay(r.sortKey) === selectedDay.value))
-const selectedDayLabel = computed(() => {
-  if (selectedDay.value === todayKey) return 'Vandaag'
-  return new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }).format(
-    new Date(`${selectedDay.value}T12:00:00`),
-  )
-})
 
 function prevMonth(): void {
   const p = addMonth(calYear.value, calMonth.value, -1)
@@ -146,9 +115,48 @@ function nextMonth(): void {
   calYear.value = n.year
   calMonth.value = n.month
 }
-function selectDay(iso: string): void {
-  selectedDay.value = iso
+
+// The day sheet: the dated items on a tapped day.
+const daySheetIso = ref<string | null>(null)
+const daySheetRows = computed(() =>
+  daySheetIso.value ? calendarRows.value.filter((r) => localDay(r.sortKey) === daySheetIso.value) : [],
+)
+const daySheetLabel = computed(() => {
+  const iso = daySheetIso.value
+  if (!iso) return ''
+  if (iso === todayKey) return 'Vandaag'
+  return new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+    new Date(`${iso}T12:00:00`),
+  )
+})
+function openDay(iso: string): void {
+  if (calendarRows.value.some((r) => localDay(r.sortKey) === iso)) daySheetIso.value = iso
 }
+
+// --- To-do's: the dateless items ---
+const todoRows = computed(() => {
+  const todos = itemStore.itemsOf(props.boardId).filter((i) => !i.startsAt)
+  return {
+    open: todos.filter((i) => !i.isDone).map((i) => ({ view: toRowView(i, members.value), item: i })),
+    done: todos.filter((i) => i.isDone).map((i) => ({ view: toRowView(i, members.value), item: i })),
+  }
+})
+
+// --- Lijst: every item, calendar or to-do, newest first. Dated items sort by
+// their date; dateless to-dos by when they were added (spec: newest on top). ---
+const listRows = computed(() => {
+  const items = itemStore.itemsOf(props.boardId).map((i) => ({
+    ...toRowView(i, members.value),
+    sortTs: i.startsAt ?? i.createdAt,
+    key: i.id,
+  }))
+  const busy = itemStore.busyOf(props.boardId).map((b) => ({
+    ...busyBlockToRowView(b),
+    sortTs: b.startsAt,
+    key: `busy-${b.id}`,
+  }))
+  return [...items, ...busy].sort((a, b) => b.sortTs.localeCompare(a.sortTs))
+})
 
 function goTo(tab: BoardTab): void {
   void router.push({ name: 'board', params: { boardId: props.boardId, tab } })
@@ -163,6 +171,7 @@ async function openDetail(row: ItemRowView): Promise<void> {
   editorForm.value = itemToForm(item, audience)
   editingId.value = item.id
   captureOpen.value = false
+  daySheetIso.value = null
   editorOpen.value = true
 }
 
@@ -249,107 +258,61 @@ async function saveCapture(form: ItemForm): Promise<void> {
     </header>
 
     <main class="flex-1 overflow-y-auto px-4 pb-36 pt-4">
-      <!-- Today -->
-      <template v-if="activeTab === 'today'">
-        <h2 class="mb-2.5 text-label font-medium uppercase tracking-wide text-muted">Vandaag</h2>
-        <p v-if="!todayRows.length" class="py-1 text-body text-faint">Niets voor vandaag.</p>
-        <ItemRow v-for="r in todayRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
-
-        <h2 class="mb-2.5 mt-6 text-label font-medium uppercase tracking-wide text-muted">Deze week</h2>
-        <p v-if="!weekRows.length" class="py-1 text-body text-faint">Niets gepland.</p>
-        <ItemRow v-for="r in weekRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
-      </template>
-
-      <!-- Agenda -->
-      <template v-else-if="activeTab === 'agenda'">
-        <div class="mb-3 flex gap-2">
+      <!-- Kalender -->
+      <template v-if="activeTab === 'kalender'">
+        <div class="mb-3 flex items-center justify-between">
           <button
             type="button"
-            class="h-touch flex-1 rounded-input border text-body2 font-medium"
-            :class="agendaView === 'list' ? 'border-accent bg-accent text-accent-text' : 'border-border text-text'"
-            :aria-pressed="agendaView === 'list'"
-            @click="agendaView = 'list'"
+            class="flex h-touch w-touch items-center justify-center rounded-full text-text"
+            aria-label="Vorige maand"
+            @click="prevMonth"
           >
-            Lijst
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
+          <span class="text-body font-medium capitalize">{{ monthTitle }}</span>
           <button
             type="button"
-            class="h-touch flex-1 rounded-input border text-body2 font-medium"
-            :class="agendaView === 'month' ? 'border-accent bg-accent text-accent-text' : 'border-border text-text'"
-            :aria-pressed="agendaView === 'month'"
-            @click="agendaView = 'month'"
+            class="flex h-touch w-touch items-center justify-center rounded-full text-text"
+            aria-label="Volgende maand"
+            @click="nextMonth"
           >
-            Maand
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         </div>
 
-        <!-- Agenda: list -->
-        <template v-if="agendaView === 'list'">
-          <p v-if="!calendarRows.length" class="py-1 text-body text-faint">Nog geen agenda-items.</p>
-          <ItemRow v-for="r in calendarRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
-        </template>
+        <div class="mb-1 grid grid-cols-7" aria-hidden="true">
+          <div v-for="w in weekdayLabels" :key="w" class="py-1.5 text-center text-meta font-medium text-faint">{{ w }}</div>
+        </div>
 
-        <!-- Agenda: month -->
-        <template v-else>
-          <div class="mb-3 flex items-center justify-between">
-            <button
-              type="button"
-              class="flex h-touch w-touch items-center justify-center rounded-full text-text"
-              aria-label="Vorige maand"
-              @click="prevMonth"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
-            </button>
-            <span class="text-body font-medium capitalize">{{ monthTitle }}</span>
-            <button
-              type="button"
-              class="flex h-touch w-touch items-center justify-center rounded-full text-text"
-              aria-label="Volgende maand"
-              @click="nextMonth"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
-            </button>
-          </div>
-
-          <div class="mb-1 grid grid-cols-7" aria-hidden="true">
-            <div v-for="w in weekdayLabels" :key="w" class="py-1.5 text-center text-meta font-medium text-faint">{{ w }}</div>
-          </div>
-
-          <div class="grid grid-cols-7 gap-0.5" role="grid" aria-label="Kalender">
-            <button
-              v-for="cell in monthCells"
-              :key="cell.iso"
-              type="button"
-              class="flex min-h-[46px] flex-col items-center gap-1 rounded-card py-1.5"
-              :class="[
-                cell.isSelected ? 'bg-accent text-accent-text' : cell.inMonth ? 'text-text' : 'text-faint',
-                cell.isToday && !cell.isSelected ? 'ring-1 ring-accent' : '',
-              ]"
-              :aria-pressed="cell.isSelected"
-              :aria-label="cell.label"
-              @click="selectDay(cell.iso)"
-            >
-              <span class="text-body2">{{ cell.day }}</span>
-              <span class="flex min-h-[6px] gap-0.5">
-                <span
-                  v-for="(dot, i) in cell.dots"
-                  :key="i"
-                  class="h-1.5 w-1.5 rounded-full"
-                  :style="{ background: dot }"
-                  aria-hidden="true"
-                ></span>
-              </span>
-            </button>
-          </div>
-
-          <h2 class="mb-2.5 mt-5 text-label font-medium uppercase tracking-wide text-muted">{{ selectedDayLabel }}</h2>
-          <p v-if="!selectedRows.length" class="py-1 text-body text-faint">Niets op deze dag.</p>
-          <ItemRow v-for="r in selectedRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
-        </template>
+        <div class="grid grid-cols-7 gap-0.5" role="grid" aria-label="Kalender">
+          <button
+            v-for="cell in monthCells"
+            :key="cell.iso"
+            type="button"
+            class="flex min-h-[46px] flex-col items-center gap-1 rounded-card py-1.5"
+            :class="[
+              cell.inMonth ? 'text-text' : 'text-faint',
+              cell.isToday ? 'ring-1 ring-accent' : '',
+            ]"
+            :aria-label="cell.label"
+            @click="openDay(cell.iso)"
+          >
+            <span class="text-body2">{{ cell.day }}</span>
+            <span class="flex min-h-[6px] gap-0.5">
+              <span
+                v-for="(dot, i) in cell.dots"
+                :key="i"
+                class="h-1.5 w-1.5 rounded-full"
+                :style="{ background: dot }"
+                aria-hidden="true"
+              ></span>
+            </span>
+          </button>
+        </div>
       </template>
 
-      <!-- To-dos -->
-      <template v-else>
+      <!-- To-do's -->
+      <template v-else-if="activeTab === 'todos'">
         <h2 class="mb-2.5 text-label font-medium uppercase tracking-wide text-muted">Te doen</h2>
         <p v-if="!todoRows.open.length" class="py-1 text-body text-faint">Alles gedaan.</p>
         <ItemRow
@@ -372,9 +335,32 @@ async function saveCapture(form: ItemForm): Promise<void> {
           />
         </template>
       </template>
+
+      <!-- Lijst: all items, newest first -->
+      <template v-else>
+        <h2 class="mb-2.5 text-label font-medium uppercase tracking-wide text-muted">Alle items</h2>
+        <p v-if="!listRows.length" class="py-1 text-body text-faint">Nog geen items.</p>
+        <ItemRow v-for="r in listRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
+      </template>
     </main>
 
     <BottomNav :active="activeTab" @navigate="goTo" @capture="captureOpen = true" />
+
+    <!-- Day sheet: the items on a tapped calendar day -->
+    <template v-if="daySheetIso">
+      <div class="absolute inset-0" :style="{ background: 'var(--color-overlay)' }" @click="daySheetIso = null"></div>
+      <div
+        class="absolute inset-x-0 bottom-0 flex max-h-[70dvh] flex-col rounded-t-sheet bg-bg px-5 pb-7 pt-3 shadow-lg"
+        role="dialog"
+        :aria-label="daySheetLabel"
+      >
+        <div class="mx-auto mb-2 h-1 w-9 shrink-0 rounded-full bg-border" aria-hidden="true"></div>
+        <h2 class="mb-2.5 text-title font-medium capitalize text-text">{{ daySheetLabel }}</h2>
+        <div class="overflow-y-auto">
+          <ItemRow v-for="r in daySheetRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
+        </div>
+      </div>
+    </template>
 
     <!-- Quick capture sheet -->
     <ItemCaptureSheet

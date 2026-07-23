@@ -141,7 +141,7 @@ async function addGroup(): Promise<void> {
         type="button"
         class="flex h-touch w-touch items-center justify-center rounded-full"
         aria-label="Terug naar board"
-        @click="router.push({ name: 'board', params: { boardId, tab: 'today' } })"
+        @click="router.push({ name: 'board', params: { boardId, tab: 'kalender' } })"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
       </button>

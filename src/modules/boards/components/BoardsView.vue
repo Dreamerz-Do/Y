@@ -30,7 +30,7 @@ const boards = computed(() => boardStore.boards)
 
 function open(boardId: string): void {
   session.rememberBoard(boardId)
-  void router.push({ name: 'board', params: { boardId, tab: 'today' } })
+  void router.push({ name: 'board', params: { boardId, tab: 'kalender' } })
 }
 
 // Create a board and go straight into it. The creator becomes its first owner

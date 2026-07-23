@@ -22,6 +22,7 @@ export interface Item {
   revealOwner: boolean
   color: ItemColorKey | null
   createdBy: string
+  createdAt: string
 }
 
 /**

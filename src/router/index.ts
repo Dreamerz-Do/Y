@@ -15,7 +15,7 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
-    path: '/b/:boardId/:tab(today|agenda|todos)?',
+    path: '/b/:boardId/:tab(kalender|todos|lijst)?',
     name: 'board',
     component: () => import('@/modules/boards/components/BoardView.vue'),
     props: true,

@@ -25,6 +25,7 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     revealOwner: true,
     color: null,
     createdBy: 'u1',
+    createdAt: '2026-04-01T09:00:00Z',
     ...overrides,
   }
 }

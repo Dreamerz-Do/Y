@@ -55,7 +55,7 @@ test.describe('interactions', () => {
     // Arrange
     await seedSession(page)
     await mockSupabase(page)
-    await page.goto('/b/board-1/today')
+    await page.goto('/b/board-1/kalender')
     await page.locator('nav button[aria-label="Nieuw item"]').click()
     await page.getByRole('dialog', { name: 'Nieuw item' }).getByRole('textbox').fill('Kaarten kopen')
 
