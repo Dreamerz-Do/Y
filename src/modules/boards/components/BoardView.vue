@@ -15,9 +15,20 @@ import {
   formToPatch,
   formToAudience,
 } from '@/modules/items/composables/itemForm'
+import {
+  WEEKDAY_LABELS,
+  monthMatrix,
+  monthLabel,
+  addMonth,
+  addDays,
+  localDay,
+} from '@/modules/items/composables/agendaMonth'
+import { todayInZone } from '@/modules/items/composables/itemDateTime'
+import { itemColorCss } from '@/shared/lib/palette'
 import type { Item, ItemRowView } from '@/modules/items/types/item'
 import ItemRow from '@/modules/items/components/ItemRow.vue'
 import ItemEditor from '@/modules/items/components/ItemEditor.vue'
+import ItemCaptureSheet from '@/modules/items/components/ItemCaptureSheet.vue'
 import BottomNav, { type BoardTab } from '@/shared/ui/BottomNav.vue'
 
 const props = defineProps<{ boardId: string; tab?: BoardTab }>()
@@ -33,12 +44,11 @@ const activeTab = computed<BoardTab>(() => props.tab ?? 'today')
 const board = computed(() => boardStore.boardById(props.boardId))
 
 const captureOpen = ref(false)
-const captureText = ref('')
 const saving = ref(false)
 
-// The full create/edit sheet, distinct from the one-field quick capture.
+// The full editor, distinct from the quick capture: it opens only for an
+// existing item (creation happens inline in the capture sheet).
 const editorOpen = ref(false)
-const editorMode = ref<'create' | 'edit'>('create')
 const editorForm = ref<ItemForm>(emptyForm())
 const editingId = ref<string | null>(null)
 
@@ -59,10 +69,8 @@ async function load(): Promise<void> {
 const members = computed(() => boardStore.membersOf(props.boardId))
 const groups = computed(() => boardStore.groupsOf(props.boardId))
 
-function dayKey(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10)
-}
-const todayKey = new Date().toISOString().slice(0, 10)
+const todayKey = todayInZone()
+const weekEnd = addDays(todayKey, 7)
 
 // Calendar rows: dated visible items and content-free busy blocks, merged and
 // sorted by start time. Busy blocks come from a separate projection so no
@@ -78,8 +86,13 @@ const calendarRows = computed<(ItemRowView & { sortKey: string; key: string })[]
   return [...dated, ...busy].sort((a, b) => a.sortKey.localeCompare(b.sortKey))
 })
 
-const todayRows = computed(() => calendarRows.value.filter((r) => dayKey(r.sortKey) === todayKey))
-const upcomingRows = computed(() => calendarRows.value.filter((r) => dayKey(r.sortKey) > todayKey))
+const todayRows = computed(() => calendarRows.value.filter((r) => localDay(r.sortKey) === todayKey))
+const weekRows = computed(() =>
+  calendarRows.value.filter((r) => {
+    const day = localDay(r.sortKey)
+    return day > todayKey && day <= weekEnd
+  }),
+)
 
 const todoRows = computed(() => {
   const todos = itemStore.itemsOf(props.boardId).filter((i) => !i.startsAt)
@@ -88,6 +101,54 @@ const todoRows = computed(() => {
     done: todos.filter((i) => i.isDone).map((i) => ({ view: toRowView(i, members.value), item: i })),
   }
 })
+
+// --- Agenda: list or month (spec 7.6 #3) ---
+const agendaView = ref<'list' | 'month'>('list')
+const today = todayInZone()
+const calYear = ref(Number(today.slice(0, 4)))
+const calMonth = ref(Number(today.slice(5, 7)))
+const selectedDay = ref(today)
+
+const monthTitle = computed(() => monthLabel(calYear.value, calMonth.value))
+const weekdayLabels = WEEKDAY_LABELS
+
+const monthCells = computed(() =>
+  monthMatrix(calYear.value, calMonth.value).map((cell) => {
+    const rows = calendarRows.value.filter((r) => localDay(r.sortKey) === cell.iso)
+    const dots = rows.slice(0, 3).map((r) => (r.color ? itemColorCss(r.color) : 'var(--color-text-faint)'))
+    const [y, m, d] = cell.iso.split('-').map(Number)
+    const count = rows.length
+    return {
+      ...cell,
+      dots,
+      isToday: cell.iso === todayKey,
+      isSelected: cell.iso === selectedDay.value,
+      label: `${d} ${monthLabel(y, m)}${count ? `, ${count} ${count === 1 ? 'item' : 'items'}` : ''}`,
+    }
+  }),
+)
+
+const selectedRows = computed(() => calendarRows.value.filter((r) => localDay(r.sortKey) === selectedDay.value))
+const selectedDayLabel = computed(() => {
+  if (selectedDay.value === todayKey) return 'Vandaag'
+  return new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+    new Date(`${selectedDay.value}T12:00:00`),
+  )
+})
+
+function prevMonth(): void {
+  const p = addMonth(calYear.value, calMonth.value, -1)
+  calYear.value = p.year
+  calMonth.value = p.month
+}
+function nextMonth(): void {
+  const n = addMonth(calYear.value, calMonth.value, 1)
+  calYear.value = n.year
+  calMonth.value = n.month
+}
+function selectDay(iso: string): void {
+  selectedDay.value = iso
+}
 
 function goTo(tab: BoardTab): void {
   void router.push({ name: 'board', params: { boardId: props.boardId, tab } })
@@ -100,19 +161,7 @@ async function openDetail(row: ItemRowView): Promise<void> {
   if (!item) return
   const audience = item.visibility === 'shared_with' ? await itemStore.shares(item.id) : undefined
   editorForm.value = itemToForm(item, audience)
-  editorMode.value = 'edit'
   editingId.value = item.id
-  captureOpen.value = false
-  editorOpen.value = true
-}
-
-// Escalate a quick capture into the full editor, carrying the typed title.
-function openFullCreate(): void {
-  const form = emptyForm(board.value?.defaultVisibility)
-  form.title = captureText.value.trim()
-  editorForm.value = form
-  editorMode.value = 'create'
-  editingId.value = null
   captureOpen.value = false
   editorOpen.value = true
 }
@@ -123,13 +172,10 @@ function closeEditor(): void {
 }
 
 async function saveEditor(form: ItemForm): Promise<void> {
+  if (!editingId.value) return
   saving.value = true
   try {
-    if (editorMode.value === 'create') {
-      await itemStore.add(formToNewItem(form, props.boardId), formToAudience(form))
-    } else if (editingId.value) {
-      await itemStore.update(props.boardId, editingId.value, formToPatch(form), formToAudience(form))
-    }
+    await itemStore.update(props.boardId, editingId.value, formToPatch(form), formToAudience(form))
     closeEditor()
   } finally {
     saving.value = false
@@ -151,15 +197,12 @@ async function toggleDone(item: Item): Promise<void> {
   await itemStore.toggleDone(props.boardId, item.id, !item.isDone)
 }
 
-async function saveCapture(): Promise<void> {
-  const title = captureText.value.trim()
-  if (!title) return
+// Quick capture: title is enough; date, assignee, colour and visibility are
+// optional and picked inline in the same sheet (spec 3.5.1 / 7.7).
+async function saveCapture(form: ItemForm): Promise<void> {
   saving.value = true
   try {
-    // Quick capture: title only, visibility falls back to the board default
-    // (spec 3.5.1). Everything else is optional and added later.
-    await itemStore.add({ boardId: props.boardId, title, visibility: board.value?.defaultVisibility })
-    captureText.value = ''
+    await itemStore.add(formToNewItem(form, props.boardId), formToAudience(form))
     captureOpen.value = false
   } finally {
     saving.value = false
@@ -212,16 +255,97 @@ async function saveCapture(): Promise<void> {
         <p v-if="!todayRows.length" class="py-1 text-body text-faint">Niets voor vandaag.</p>
         <ItemRow v-for="r in todayRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
 
-        <h2 class="mb-2.5 mt-6 text-label font-medium uppercase tracking-wide text-muted">Binnenkort</h2>
-        <p v-if="!upcomingRows.length" class="py-1 text-body text-faint">Niets gepland.</p>
-        <ItemRow v-for="r in upcomingRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
+        <h2 class="mb-2.5 mt-6 text-label font-medium uppercase tracking-wide text-muted">Deze week</h2>
+        <p v-if="!weekRows.length" class="py-1 text-body text-faint">Niets gepland.</p>
+        <ItemRow v-for="r in weekRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
       </template>
 
       <!-- Agenda -->
       <template v-else-if="activeTab === 'agenda'">
-        <h2 class="mb-2.5 text-label font-medium uppercase tracking-wide text-muted">Agenda</h2>
-        <p v-if="!calendarRows.length" class="py-1 text-body text-faint">Nog geen agenda-items.</p>
-        <ItemRow v-for="r in calendarRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
+        <div class="mb-3 flex gap-2">
+          <button
+            type="button"
+            class="h-touch flex-1 rounded-input border text-body2 font-medium"
+            :class="agendaView === 'list' ? 'border-accent bg-accent text-accent-text' : 'border-border text-text'"
+            :aria-pressed="agendaView === 'list'"
+            @click="agendaView = 'list'"
+          >
+            Lijst
+          </button>
+          <button
+            type="button"
+            class="h-touch flex-1 rounded-input border text-body2 font-medium"
+            :class="agendaView === 'month' ? 'border-accent bg-accent text-accent-text' : 'border-border text-text'"
+            :aria-pressed="agendaView === 'month'"
+            @click="agendaView = 'month'"
+          >
+            Maand
+          </button>
+        </div>
+
+        <!-- Agenda: list -->
+        <template v-if="agendaView === 'list'">
+          <p v-if="!calendarRows.length" class="py-1 text-body text-faint">Nog geen agenda-items.</p>
+          <ItemRow v-for="r in calendarRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
+        </template>
+
+        <!-- Agenda: month -->
+        <template v-else>
+          <div class="mb-3 flex items-center justify-between">
+            <button
+              type="button"
+              class="flex h-touch w-touch items-center justify-center rounded-full text-text"
+              aria-label="Vorige maand"
+              @click="prevMonth"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            <span class="text-body font-medium capitalize">{{ monthTitle }}</span>
+            <button
+              type="button"
+              class="flex h-touch w-touch items-center justify-center rounded-full text-text"
+              aria-label="Volgende maand"
+              @click="nextMonth"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+          </div>
+
+          <div class="mb-1 grid grid-cols-7" aria-hidden="true">
+            <div v-for="w in weekdayLabels" :key="w" class="py-1.5 text-center text-meta font-medium text-faint">{{ w }}</div>
+          </div>
+
+          <div class="grid grid-cols-7 gap-0.5" role="grid" aria-label="Kalender">
+            <button
+              v-for="cell in monthCells"
+              :key="cell.iso"
+              type="button"
+              class="flex min-h-[46px] flex-col items-center gap-1 rounded-card py-1.5"
+              :class="[
+                cell.isSelected ? 'bg-accent text-accent-text' : cell.inMonth ? 'text-text' : 'text-faint',
+                cell.isToday && !cell.isSelected ? 'ring-1 ring-accent' : '',
+              ]"
+              :aria-pressed="cell.isSelected"
+              :aria-label="cell.label"
+              @click="selectDay(cell.iso)"
+            >
+              <span class="text-body2">{{ cell.day }}</span>
+              <span class="flex min-h-[6px] gap-0.5">
+                <span
+                  v-for="(dot, i) in cell.dots"
+                  :key="i"
+                  class="h-1.5 w-1.5 rounded-full"
+                  :style="{ background: dot }"
+                  aria-hidden="true"
+                ></span>
+              </span>
+            </button>
+          </div>
+
+          <h2 class="mb-2.5 mt-5 text-label font-medium uppercase tracking-wide text-muted">{{ selectedDayLabel }}</h2>
+          <p v-if="!selectedRows.length" class="py-1 text-body text-faint">Niets op deze dag.</p>
+          <ItemRow v-for="r in selectedRows" :key="r.key" :row="r" @open="openDetail" @busy="openDetail" />
+        </template>
       </template>
 
       <!-- To-dos -->
@@ -253,42 +377,20 @@ async function saveCapture(): Promise<void> {
     <BottomNav :active="activeTab" @navigate="goTo" @capture="captureOpen = true" />
 
     <!-- Quick capture sheet -->
-    <div v-if="captureOpen" class="absolute inset-0" :style="{ background: 'var(--color-overlay)' }" @click="captureOpen = false"></div>
-    <div
+    <ItemCaptureSheet
       v-if="captureOpen"
-      class="absolute inset-x-0 bottom-0 flex flex-col gap-3.5 rounded-t-sheet bg-bg px-5 pb-7 pt-3 shadow-lg"
-      role="dialog"
-      aria-label="Nieuw item"
-    >
-      <div class="mx-auto h-1 w-9 rounded-full bg-border" aria-hidden="true"></div>
-      <input
-        v-model="captureText"
-        class="h-[52px] rounded-card border border-border bg-surface px-4 text-title text-text"
-        placeholder="Nieuw item…"
-        aria-label="Titel van het item"
-        @keyup.enter="saveCapture"
-      />
-      <button
-        type="button"
-        class="h-[52px] rounded-card bg-accent text-lg font-medium text-accent-text disabled:opacity-50"
-        :disabled="!captureText.trim() || saving"
-        @click="saveCapture"
-      >
-        {{ saving ? 'Bezig…' : 'Opslaan' }}
-      </button>
-      <button
-        type="button"
-        class="h-touch text-body2 font-medium text-accent"
-        @click="openFullCreate"
-      >
-        Meer opties — datum, kleur, zichtbaarheid
-      </button>
-    </div>
+      :members="members"
+      :groups="groups"
+      :default-visibility="board?.defaultVisibility"
+      :saving="saving"
+      @save="saveCapture"
+      @close="captureOpen = false"
+    />
 
-    <!-- Full create/edit sheet -->
+    <!-- Full edit sheet -->
     <ItemEditor
       v-if="editorOpen"
-      :mode="editorMode"
+      mode="edit"
       :initial-form="editorForm"
       :members="members"
       :groups="groups"
