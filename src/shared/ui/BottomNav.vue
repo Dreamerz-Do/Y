@@ -2,7 +2,7 @@
 // Bottom navigation with a central capture FAB (spec 7.7: quick capture is
 // reachable from every board screen, one-handed, within thumb reach). Tabs are
 // text + icon so the active state never rests on colour alone (hard rule 6).
-export type BoardTab = 'today' | 'agenda' | 'todos'
+export type BoardTab = 'kalender' | 'todos' | 'lijst'
 
 defineProps<{
   active: BoardTab
@@ -22,22 +22,9 @@ const emit = defineEmits<{
       <button
         type="button"
         class="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-meta font-medium"
-        :class="active === 'today' ? 'text-accent' : 'text-muted'"
-        :aria-current="active === 'today' ? 'page' : undefined"
-        @click="emit('navigate', 'today')"
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 11.5 12 4l9 7.5" />
-          <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-        </svg>
-        <span>Vandaag</span>
-      </button>
-      <button
-        type="button"
-        class="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-meta font-medium"
-        :class="active === 'agenda' ? 'text-accent' : 'text-muted'"
-        :aria-current="active === 'agenda' ? 'page' : undefined"
-        @click="emit('navigate', 'agenda')"
+        :class="active === 'kalender' ? 'text-accent' : 'text-muted'"
+        :aria-current="active === 'kalender' ? 'page' : undefined"
+        @click="emit('navigate', 'kalender')"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -45,11 +32,8 @@ const emit = defineEmits<{
           <line x1="8" y1="3" x2="8" y2="7" />
           <line x1="16" y1="3" x2="16" y2="7" />
         </svg>
-        <span>Agenda</span>
+        <span>Kalender</span>
       </button>
-
-      <div class="w-[76px]" aria-hidden="true"></div>
-
       <button
         type="button"
         class="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-meta font-medium"
@@ -63,6 +47,26 @@ const emit = defineEmits<{
           <line x1="7" y1="16.5" x2="14" y2="16.5" />
         </svg>
         <span>To-do's</span>
+      </button>
+
+      <div class="w-[76px]" aria-hidden="true"></div>
+
+      <button
+        type="button"
+        class="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-meta font-medium"
+        :class="active === 'lijst' ? 'text-accent' : 'text-muted'"
+        :aria-current="active === 'lijst' ? 'page' : undefined"
+        @click="emit('navigate', 'lijst')"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+        <span>Lijst</span>
       </button>
     </div>
 

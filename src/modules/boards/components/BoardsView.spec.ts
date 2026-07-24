@@ -49,6 +49,31 @@ describe('BoardsView', () => {
 
     // Assert
     expect(create).toHaveBeenCalledWith('Huishouden', expect.any(Number))
-    expect(push).toHaveBeenCalledWith({ name: 'board', params: { boardId: 'new-board', tab: 'today' } })
+    expect(push).toHaveBeenCalledWith({ name: 'board', params: { boardId: 'new-board', tab: 'kalender' } })
+  })
+
+  it('reaches the account screen from the header icon', async () => {
+    // Arrange
+    const wrapper = mount(BoardsView)
+    await flushPromises()
+
+    // Act
+    await wrapper.get('button[aria-label="Account"]').trigger('click')
+
+    // Assert
+    expect(push).toHaveBeenCalledWith({ name: 'account' })
+  })
+
+  it('keeps the decorative account icon from swallowing a tap', () => {
+    // Arrange — an <svg> that receives pointer events steals the tap on iOS
+    // Safari, so the icon must stay out of the way and the button be the target.
+    const wrapper = mount(BoardsView)
+
+    // Act
+    const icon = wrapper.get('button[aria-label="Account"] svg')
+
+    // Assert
+    expect(icon.attributes('aria-hidden')).toBe('true')
+    expect(icon.classes()).toContain('pointer-events-none')
   })
 })

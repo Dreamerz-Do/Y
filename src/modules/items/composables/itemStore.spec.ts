@@ -52,7 +52,7 @@ describe('useItemStore.load', () => {
     // Arrange
     const store = useItemStore()
     listByBoard.mockResolvedValueOnce([
-      { id: 'i1', boardId: 'board-1', title: 'A', notes: null, assigneeIds: [], startsAt: null, endsAt: null, allDay: false, isDone: false, visibility: 'board', revealOwner: true, color: null, createdBy: 'u1' },
+      { id: 'i1', boardId: 'board-1', title: 'A', notes: null, assigneeIds: [], startsAt: null, endsAt: null, allDay: false, isDone: false, visibility: 'board', revealOwner: true, color: null, createdBy: 'u1', createdAt: '2026-04-01T09:00:00Z' },
     ])
 
     // Act

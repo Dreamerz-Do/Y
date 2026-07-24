@@ -82,41 +82,30 @@ test.describe('authenticated', () => {
     await shot(page, '05-board-create')
   })
 
-  test('board — today tab', async ({ page }) => {
+  test('board — kalender tab (month calendar)', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
 
     // Act
-    await page.goto('/b/board-1/today')
-    await expect(page.getByRole('heading', { name: 'Vandaag' })).toBeVisible()
-
-    // Assert
-    await shot(page, '06-board-today')
-  })
-
-  test('board — agenda tab (list)', async ({ page }) => {
-    // Arrange
-    await mockSupabase(page)
-
-    // Act
-    await page.goto('/b/board-1/agenda')
-    await expect(page.getByRole('button', { name: 'Lijst' })).toBeVisible()
-
-    // Assert
-    await shot(page, '07-board-agenda-list')
-  })
-
-  test('board — agenda tab (month)', async ({ page }) => {
-    // Arrange
-    await mockSupabase(page)
-    await page.goto('/b/board-1/agenda')
-
-    // Act
-    await page.getByRole('button', { name: 'Maand' }).click()
+    await page.goto('/b/board-1/kalender')
     await expect(page.getByRole('button', { name: 'Volgende maand' })).toBeVisible()
 
     // Assert
-    await shot(page, '08-board-agenda-month')
+    await shot(page, '06-board-kalender')
+  })
+
+  test('board — day sheet from a calendar day', async ({ page }) => {
+    // Arrange — the two seeded items land today, so today's cell has items.
+    await mockSupabase(page)
+    await page.goto('/b/board-1/kalender')
+    await expect(page.getByRole('button', { name: 'Volgende maand' })).toBeVisible()
+
+    // Act
+    await page.getByRole('button', { name: /items/ }).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+
+    // Assert
+    await shot(page, '07-board-day-sheet')
   })
 
   test('board — to-dos tab', async ({ page }) => {
@@ -128,14 +117,26 @@ test.describe('authenticated', () => {
     await expect(page.getByRole('heading', { name: 'Te doen' })).toBeVisible()
 
     // Assert
-    await shot(page, '09-board-todos')
+    await shot(page, '08-board-todos')
+  })
+
+  test('board — lijst tab (all items, newest first)', async ({ page }) => {
+    // Arrange
+    await mockSupabase(page)
+
+    // Act
+    await page.goto('/b/board-1/lijst')
+    await expect(page.getByRole('heading', { name: 'Alle items' })).toBeVisible()
+
+    // Assert
+    await shot(page, '09-board-lijst')
   })
 
   test('quick capture sheet', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
-    await page.goto('/b/board-1/today')
-    await expect(page.getByRole('heading', { name: 'Vandaag' })).toBeVisible()
+    await page.goto('/b/board-1/kalender')
+    await expect(page.getByRole('button', { name: 'Volgende maand' })).toBeVisible()
 
     // Act
     await page.locator('nav button[aria-label="Nieuw item"]').click()
@@ -148,7 +149,7 @@ test.describe('authenticated', () => {
   test('quick capture — details expanded inline', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
-    await page.goto('/b/board-1/today')
+    await page.goto('/b/board-1/kalender')
     await page.locator('nav button[aria-label="Nieuw item"]').click()
     await expect(page.getByRole('dialog', { name: 'Nieuw item' })).toBeVisible()
 
@@ -163,7 +164,7 @@ test.describe('authenticated', () => {
   test('full item editor (existing item)', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
-    await page.goto('/b/board-1/today')
+    await page.goto('/b/board-1/lijst')
     await expect(page.getByText('Tandarts Sanne')).toBeVisible()
 
     // Act

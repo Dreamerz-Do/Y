@@ -30,6 +30,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     viewport: { width: 430, height: 900 },
+    // A touch-capable context so tests can tap (not just click), matching the
+    // iPad/touch reports the UI must hold up under.
+    hasTouch: true,
     launchOptions: { executablePath },
   },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],

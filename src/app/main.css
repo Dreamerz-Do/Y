@@ -30,4 +30,13 @@
     outline-offset: 2px;
     border-radius: var(--radius-focus);
   }
+
+  /* Decorative icons must never be the tap target. iOS Safari only synthesises
+     a click when the tapped node is itself clickable, so an <svg> inside a
+     <button> otherwise swallows the tap on touch and the handler never fires —
+     the button looks dead. Keeping the button the hit target fixes it. */
+  button svg,
+  [role='button'] svg {
+    pointer-events: none;
+  }
 }

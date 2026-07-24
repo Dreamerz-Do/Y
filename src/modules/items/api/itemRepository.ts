@@ -28,6 +28,7 @@ export function mapRow(row: ItemRow): Item {
     revealOwner: row.reveal_owner,
     color: (row.color as ItemColorKey | null) ?? null,
     createdBy: row.created_by,
+    createdAt: row.created_at,
   }
 }
 
