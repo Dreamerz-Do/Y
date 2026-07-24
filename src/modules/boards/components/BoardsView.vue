@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useBoardStore } from '../composables/boardStore'
 import { useSessionStore } from '@/stores/session'
 import { useBoardAccent } from '@/shared/composables/useBoardAccent'
+import { useTheme } from '@/shared/composables/useTheme'
 import { boardDotCss } from '@/shared/lib/palette'
 import AppAvatar from '@/shared/ui/AppAvatar.vue'
 import PendingInvitations from '@/modules/invitations/components/PendingInvitations.vue'
@@ -13,6 +14,7 @@ const boardStore = useBoardStore()
 const session = useSessionStore()
 const router = useRouter()
 const { setHue } = useBoardAccent()
+const { toggle: toggleTheme } = useTheme()
 
 // The overview belongs to no single board, so the chrome returns to neutral.
 setHue(null)
@@ -47,6 +49,14 @@ async function createBoard(name: string, accentHue: number): Promise<void> {
     <header class="flex h-14 items-center justify-between border-b border-border px-3">
       <h1 class="text-screen font-medium">Boards</h1>
       <div class="flex items-center gap-1">
+        <button
+          type="button"
+          class="flex h-touch w-touch items-center justify-center rounded-full text-text"
+          aria-label="Licht of donker thema wisselen"
+          @click="toggleTheme"
+        >
+          <svg class="pointer-events-none" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" /></svg>
+        </button>
         <button
           type="button"
           class="flex h-touch w-touch items-center justify-center rounded-full text-text"
