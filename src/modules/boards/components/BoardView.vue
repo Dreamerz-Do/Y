@@ -5,7 +5,6 @@ import { useBoardStore } from '../composables/boardStore'
 import { useItemStore } from '@/modules/items/composables/itemStore'
 import { useSessionStore } from '@/stores/session'
 import { useBoardAccent } from '@/shared/composables/useBoardAccent'
-import { useTheme } from '@/shared/composables/useTheme'
 import { toRowView, busyBlockToRowView } from '@/modules/items/composables/itemView'
 import {
   type ItemForm,
@@ -37,7 +36,6 @@ const itemStore = useItemStore()
 const session = useSessionStore()
 const router = useRouter()
 const { setHue } = useBoardAccent()
-const { toggle: toggleTheme } = useTheme()
 
 const activeTab = computed<BoardTab>(() => props.tab ?? 'kalender')
 const board = computed(() => boardStore.boardById(props.boardId))
@@ -246,14 +244,6 @@ async function saveCapture(form: ItemForm): Promise<void> {
         @click="load"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v5h-5" /></svg>
-      </button>
-      <button
-        type="button"
-        class="flex h-touch w-touch items-center justify-center rounded-full"
-        aria-label="Licht of donker thema wisselen"
-        @click="toggleTheme"
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" /></svg>
       </button>
     </header>
 

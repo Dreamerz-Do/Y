@@ -64,6 +64,17 @@ describe('BoardsView', () => {
     expect(push).toHaveBeenCalledWith({ name: 'account' })
   })
 
+  it('toggles the theme from the overview header', async () => {
+    // Arrange — the theme switch belongs to the overview, not a single board.
+    const wrapper = mount(BoardsView)
+
+    // Act
+    await wrapper.get('button[aria-label="Licht of donker thema wisselen"]').trigger('click')
+
+    // Assert
+    expect(['light', 'dark']).toContain(document.documentElement.getAttribute('data-theme'))
+  })
+
   it('keeps the decorative account icon from swallowing a tap', () => {
     // Arrange — an <svg> that receives pointer events steals the tap on iOS
     // Safari, so the icon must stay out of the way and the button be the target.
