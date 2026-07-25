@@ -101,6 +101,13 @@ export type Database = {
             referencedRelation: 'boards'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'memberships_user_id_profiles_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
         ]
       }
       groups: {
