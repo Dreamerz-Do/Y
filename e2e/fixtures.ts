@@ -48,6 +48,15 @@ export const BOARDS = [
     created_by: USER.id,
     created_at: '2026-06-20T09:00:00Z',
   },
+  {
+    // A board where the seeded user is a guest (for the read-only editor).
+    id: 'board-guest',
+    name: 'Buren',
+    accent_hue: 320,
+    default_visibility: 'board',
+    created_by: '22222222-2222-2222-2222-222222222222',
+    created_at: '2026-06-25T09:00:00Z',
+  },
 ]
 
 const MEMBERSHIP_ME = 'mem-1'
@@ -79,6 +88,20 @@ export const MEMBERSHIPS = [
     user_id: USER.id,
     board_id: 'board-solo',
     role: 'owner',
+    profiles: { display_name: 'Jeffrey', color_hue: 215 },
+  },
+  {
+    id: 'mem-guest-owner',
+    user_id: '22222222-2222-2222-2222-222222222222',
+    board_id: 'board-guest',
+    role: 'owner',
+    profiles: { display_name: 'Sanne', color_hue: 320 },
+  },
+  {
+    id: 'mem-guest-me',
+    user_id: USER.id,
+    board_id: 'board-guest',
+    role: 'guest',
     profiles: { display_name: 'Jeffrey', color_hue: 215 },
   },
 ]
@@ -174,6 +197,24 @@ export const ITEMS = [
     created_by: USER.id,
     created_at: '2026-07-05T09:00:00Z',
     updated_at: '2026-07-05T09:00:00Z',
+  },
+  {
+    // On the guest board, created by the owner — the seeded guest can't edit it.
+    id: 'item-guest',
+    board_id: 'board-guest',
+    title: 'Sleutel teruggeven',
+    notes: null,
+    assignee_id: null,
+    starts_at: null,
+    ends_at: null,
+    all_day: false,
+    is_done: false,
+    visibility: 'board',
+    reveal_owner: true,
+    color: null,
+    created_by: '22222222-2222-2222-2222-222222222222',
+    created_at: '2026-07-06T09:00:00Z',
+    updated_at: '2026-07-06T09:00:00Z',
   },
 ]
 
@@ -297,12 +338,14 @@ export async function mockSupabase(
         return json(route, GROUPS)
       case 'group_members':
         return json(route, [])
-      case 'items':
+      case 'items': {
         // A write (insert/update) uses .select().single(): echo one full row.
         if (method === 'POST' || method === 'PATCH') {
           return json(route, { ...ITEMS[0], id: 'e2e-item', ...reqBody(route) })
         }
-        return json(route, items)
+        const board = url.searchParams.get('board_id')?.replace(/^eq\./, '')
+        return json(route, board ? items.filter((i) => (i as { board_id: string }).board_id === board) : items)
+      }
       case 'calendar_busy_blocks':
         return json(route, [])
       case 'item_shares':

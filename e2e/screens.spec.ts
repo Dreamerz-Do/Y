@@ -188,6 +188,22 @@ test.describe('authenticated', () => {
     await shot(page, '13-board-settings')
   })
 
+  test('read-only editor for a guest on another member\'s item', async ({ page }) => {
+    // Arrange — the seeded user is a guest on board-guest; the item is the
+    // owner's, so it opens read-only.
+    await mockSupabase(page)
+    await page.goto('/b/board-guest/lijst')
+    await expect(page.getByText('Sleutel teruggeven')).toBeVisible()
+
+    // Act
+    await page.getByText('Sleutel teruggeven').click()
+    await expect(page.getByRole('dialog', { name: 'Item bekijken' })).toBeVisible()
+
+    // Assert
+    await expect(page.getByText('Alleen-lezen')).toBeVisible()
+    await shot(page, '14-item-readonly-guest')
+  })
+
   test('members and groups', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
@@ -197,7 +213,7 @@ test.describe('authenticated', () => {
     await expect(page.getByRole('heading', { name: 'Leden', exact: true })).toBeVisible()
 
     // Assert
-    await shot(page, '14-members')
+    await shot(page, '15-members')
   })
 
   test('account screen', async ({ page }) => {

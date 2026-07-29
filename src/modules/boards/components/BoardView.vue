@@ -42,6 +42,8 @@ const board = computed(() => boardStore.boardById(props.boardId))
 
 const captureOpen = ref(false)
 const saving = ref(false)
+// Whether the item currently open in the editor may be modified by this viewer.
+const editorCanEdit = ref(true)
 
 // The full editor, distinct from the quick capture: it opens only for an
 // existing item (creation happens inline in the capture sheet).
@@ -65,9 +67,14 @@ async function load(): Promise<void> {
 
 const members = computed(() => boardStore.membersOf(props.boardId))
 const groups = computed(() => boardStore.groupsOf(props.boardId))
-const isOwner = computed(
-  () => members.value.find((m) => m.userId === session.user?.id)?.role === 'owner',
+const myMembership = computed(() => members.value.find((m) => m.userId === session.user?.id))
+const isOwner = computed(() => myMembership.value?.role === 'owner')
+// Owners and members may edit others' items and assign to anyone; a guest may
+// not (spec 4.2). The editor/capture use this to gate their controls up front.
+const canEditOthers = computed(
+  () => myMembership.value?.role === 'owner' || myMembership.value?.role === 'member',
 )
+const myMembershipId = computed(() => myMembership.value?.membershipId ?? null)
 
 const todayKey = todayInZone()
 
@@ -171,6 +178,8 @@ async function openDetail(row: ItemRowView): Promise<void> {
   const audience = item.visibility === 'shared_with' ? await itemStore.shares(item.id) : undefined
   editorForm.value = itemToForm(item, audience)
   editingId.value = item.id
+  // A guest may edit only their own items; others open read-only (spec 4.2).
+  editorCanEdit.value = canEditOthers.value || item.createdBy === session.user?.id
   captureOpen.value = false
   daySheetIso.value = null
   editorOpen.value = true
@@ -371,6 +380,8 @@ async function saveCapture(form: ItemForm): Promise<void> {
       :groups="groups"
       :default-visibility="board?.defaultVisibility"
       :saving="saving"
+      :can-assign-others="canEditOthers"
+      :my-membership-id="myMembershipId"
       @save="saveCapture"
       @close="captureOpen = false"
     />
@@ -383,6 +394,9 @@ async function saveCapture(form: ItemForm): Promise<void> {
       :members="members"
       :groups="groups"
       :saving="saving"
+      :can-edit="editorCanEdit"
+      :can-assign-others="canEditOthers"
+      :my-membership-id="myMembershipId"
       @save="saveEditor"
       @remove="removeEditor"
       @close="closeEditor"

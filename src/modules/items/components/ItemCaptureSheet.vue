@@ -12,12 +12,18 @@ import { todayInZone } from '../composables/itemDateTime'
 // distinct from the full editor (ItemEditor), which opens only for an existing
 // item. Everything but the title is optional (spec 3.5.1); colour and
 // visibility always carry text, never colour alone (hard rule 6).
-const props = defineProps<{
-  members: Member[]
-  groups: Group[]
-  defaultVisibility?: Visibility
-  saving?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    members: Member[]
+    groups: Group[]
+    defaultVisibility?: Visibility
+    saving?: boolean
+    // A guest may only assign to themselves (spec 4.2); owners/members: everyone.
+    canAssignOthers?: boolean
+    myMembershipId?: string | null
+  }>(),
+  { defaultVisibility: 'board', canAssignOthers: true, myMembershipId: null },
+)
 
 const emit = defineEmits<{
   save: [form: ItemForm]
@@ -28,6 +34,11 @@ const form = reactive<ItemForm>(emptyForm(props.defaultVisibility ?? 'board'))
 const expanded = ref(false)
 
 const saveable = computed(() => isSaveable(form))
+const assignableMembers = computed(() =>
+  props.canAssignOthers
+    ? props.members
+    : props.members.filter((m) => m.membershipId === props.myMembershipId),
+)
 
 const visibilities: { value: Visibility; label: string }[] = [
   { value: 'board', label: 'Iedereen' },
@@ -154,11 +165,11 @@ function save(): void {
       </div>
 
       <!-- Assignee -->
-      <div v-if="members.length">
+      <div v-if="assignableMembers.length">
         <p class="mb-1.5 text-label font-medium text-muted">Toewijzen</p>
         <div class="flex flex-wrap gap-2">
           <button
-            v-for="m in members"
+            v-for="m in assignableMembers"
             :key="m.membershipId"
             type="button"
             class="flex h-touch w-touch items-center justify-center rounded-full border-2 text-body font-medium text-white"

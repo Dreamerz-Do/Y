@@ -6,6 +6,7 @@ import type { Member, Group } from '@/modules/boards/types/board'
 
 const members: Member[] = [
   { membershipId: 'm1', userId: 'u1', name: 'Jeffrey', role: 'owner', hue: 215 },
+  { membershipId: 'm2', userId: 'u2', name: 'Laura', role: 'member', hue: 320 },
 ]
 const groups: Group[] = [{ id: 'g1', boardId: 'b1', name: 'Ouders', memberIds: ['m1'] }]
 
@@ -81,5 +82,19 @@ describe('ItemCaptureSheet', () => {
     // Assert
     const saved = wrapper.emitted('save')?.[0]?.[0] as { hasDate: boolean; allDay: boolean; date: string }
     expect(saved).toMatchObject({ hasDate: true, allDay: true, date: todayInZone() })
+  })
+
+  it('limits assignment to the viewer when they cannot assign others', async () => {
+    // Arrange — a guest may only assign to themselves.
+    const wrapper = mount(ItemCaptureSheet, {
+      props: { members, groups, defaultVisibility: 'board', canAssignOthers: false, myMembershipId: 'm1' },
+    })
+    await byText(wrapper, '+ Details toevoegen').trigger('click')
+
+    // Act
+    const assignChips = wrapper.findAll('button[aria-label^="Toewijzen aan"]')
+
+    // Assert — only the viewer (Jeffrey), not Laura.
+    expect(assignChips.map((b) => b.attributes('aria-label'))).toEqual(['Toewijzen aan Jeffrey'])
   })
 })
