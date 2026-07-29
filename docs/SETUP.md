@@ -116,8 +116,9 @@ Attach a **required reviewer** to the `production` environment so a merge into
 | Merge into `develop` | `deploy-development.yml` | migrations + deploy to development |
 | Merge into `main` | `deploy-production.yml` | migrations + deploy to production |
 
-The RLS policy tests (spec 9.8, still ⬜) run against a throwaway Supabase
-instance once written — the placeholder job is commented in `ci.yml`.
+The RLS policy tests run against a throwaway Supabase instance in CI (the
+`rls-policies` job in `ci.yml`), alongside the Playwright end-to-end suite (the
+`e2e` job). Both must pass before a merge (spec 9.8).
 
 ## 5. Android (Capacitor)
 
@@ -132,3 +133,40 @@ npx cap sync android
 
 Use a distinct `applicationId` suffix for the development build so it can sit
 next to production on one device (spec 9.8).
+
+## 6. Production go-live checklist
+
+The `develop → development` deploy is proven. The `main → production` path
+(`deploy-production.yml`) is complete in structure but has not been exercised
+yet — it needs its infrastructure and one gated first run. Audit result:
+`.firebaserc` and `firebase.json` both define a `production` hosting target, and
+the workflow already uses `hosting:production`, `VITE_APP_ENV=production`,
+migrations-first, and `environment: production`. So what remains is provisioning
+and the first release, not code.
+
+Before the first production release:
+
+1. **Production Supabase project** (EU) created, migrations applied
+   (`supabase link --project-ref <ref>` then `supabase db push`), and its five
+   values collected (section 2).
+2. **Production Firebase Hosting site** created and its name set in `.firebaserc`
+   under the `production` target.
+3. **GitHub `production` environment** populated with the variables and secrets
+   (section 4), scoped to that environment — distinct values from `development`.
+4. **Required reviewer** on the `production` environment, plus branch protection
+   on `main` (PR + passing `ci.yml` required), so nothing reaches production
+   unreviewed (hard rule 7).
+
+Release, then verify:
+
+5. Open a PR from `develop` into `main`; `ci.yml` runs on it; after review,
+   merge. `deploy-production.yml` applies migrations to the production project
+   and deploys the build to the production site.
+6. Load the production URL, sign in, create a board and an item, open **Leden &
+   groepen**: confirm the members list and invite flow work — i.e. the
+   production schema carries every migration, including the memberships→profiles
+   FK.
+
+Rollback: a bad frontend is fixed by reverting the offending commit on `main`
+(which re-deploys). Migrations are forward-only — correct a bad one with a new
+migration, never by editing an applied file (spec 9.8).
