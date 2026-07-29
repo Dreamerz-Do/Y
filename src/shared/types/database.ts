@@ -372,6 +372,18 @@ export type Database = {
         Args: { board_name: string; accent?: number }
         Returns: Database['public']['Tables']['boards']['Row']
       }
+      delete_board: {
+        Args: { b: string }
+        Returns: undefined
+      }
+      leave_board: {
+        Args: { b: string; receiver?: string }
+        Returns: undefined
+      }
+      remove_member: {
+        Args: { m: string }
+        Returns: undefined
+      }
     }
     Enums: {
       board_role: 'owner' | 'member' | 'guest'

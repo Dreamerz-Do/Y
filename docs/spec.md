@@ -250,29 +250,29 @@ Every board has a configurable default audience for new items. That way, forgett
 
 **A member leaves a board**
 - A member can remove themselves from a board.
-- All items they own are **permanently deleted**.
-- All assignments to them are cleared; those items remain, without an assignee.
+- Their **private** items are permanently deleted.
+- All their other items **stay on the board** unchanged; assignments to them are cleared (those items remain, without an assignee).
 
 **An owner leaves a board**
-- Only possible if at least one other owner remains. A board always keeps at least one owner.
-- Otherwise identical to a member leaving.
+- Only possible while at least one other owner remains — a board always keeps at least one owner.
+- The leaving owner nominates a **receiving owner**. Their **private** items are deleted; every other item they created (board- and selection-visible, assigned or not) is **re-owned by the receiving owner**, with assignees kept.
+- A sole owner must first appoint another owner before they can leave.
+
+**Deleting a board**
+- An owner may delete a board **only when no other members remain**, so no one else's content is taken with it. The board and everything in it are then permanently removed.
+- While others are still present, deletion is not offered; an owner leaves (handing over items) instead.
 
 **Account deletion**
-- Everything the user owns is deleted.
-- All assignments to them are cleared.
+- Everything the user owns is deleted; all assignments to them are cleared. This is the blunt "erase everything I created" path, distinct from leaving a single board (which hands over or keeps shared content).
 
 **Warnings are mandatory**
 Deletion is permanent and affects other people's data. Every action above requires an explicit confirmation that names *what* disappears and how much — not a generic "are you sure?".
 
-#### Two consequences still to decide ⬜
+#### Resolved
 
-1. **What happens on account deletion when you are the sole owner of a board?**
-   Applied literally, the whole board disappears, including everything other members have in it. Alternatives: block deletion until ownership has been transferred, or force transfer to another member.
+1. **Sole owner and board deletion.** A board is deleted only when its owner is the last member. While others remain, ownership is handed over — an owner leaves and nominates a receiver — rather than the board vanishing under everyone.
 
-2. **Board-wide items created by a departing member disappear with them.**
-   If a parent created "swimming lesson Tuesday" and then leaves, it is gone for everyone — even though these were shared arrangements. Alternative: transfer items with `visibility: board` to an owner instead of deleting them, and only genuinely erase `private` and `shared-with` items.
-
-   Worth noting: the right to erasure under the GDPR concerns personal data, not necessarily all content someone created in a shared space. Transferring is therefore defensible.
+2. **A departing person's shared content.** Board- and selection-visible items are **kept**: re-owned to the receiving owner when an owner leaves, or left in place when a member leaves. Only **private** items are erased. This matches the GDPR view that erasure concerns personal data, not all content created in a shared space.
 
 ### 4.6 Visibility — summary
 

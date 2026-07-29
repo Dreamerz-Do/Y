@@ -15,6 +15,12 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/b/:boardId/settings',
+    name: 'board-settings',
+    component: () => import('@/modules/boards/components/BoardSettingsView.vue'),
+    props: true,
+  },
+  {
     path: '/b/:boardId/:tab(kalender|todos|lijst)?',
     name: 'board',
     component: () => import('@/modules/boards/components/BoardView.vue'),

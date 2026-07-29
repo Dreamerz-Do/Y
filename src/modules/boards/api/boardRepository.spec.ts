@@ -27,6 +27,9 @@ function builder() {
     calls.eq.push([col, val])
     return chain
   }
+  chain.select = () => chain
+  chain.single = () => chain
+  chain.maybeSingle = () => chain
   chain.then = (onFulfilled: (v: unknown) => unknown) => Promise.resolve(resolved).then(onFulfilled)
   return chain
 }
@@ -161,7 +164,7 @@ describe('boardRepository.updateRole', () => {
 })
 
 describe('boardRepository.removeMember', () => {
-  it('deletes the membership by id', async () => {
+  it('removes the member through the remove_member RPC', async () => {
     // Arrange
     resolved = { data: null, error: null }
 
@@ -169,8 +172,73 @@ describe('boardRepository.removeMember', () => {
     await boardRepository.removeMember('m1')
 
     // Assert
-    expect(calls.table).toBe('memberships')
-    expect(calls.deleted).toBe(true)
-    expect(calls.eq).toContainEqual(['id', 'm1'])
+    expect(calls.rpc).toEqual({ name: 'remove_member', args: { m: 'm1' } })
+  })
+})
+
+describe('boardRepository.leave', () => {
+  it('leaves without a receiver for a plain member', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await boardRepository.leave('b1')
+
+    // Assert
+    expect(calls.rpc).toEqual({ name: 'leave_board', args: { b: 'b1' } })
+  })
+
+  it('passes the receiving owner when one is given', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await boardRepository.leave('b1', 'm2')
+
+    // Assert
+    expect(calls.rpc).toEqual({ name: 'leave_board', args: { b: 'b1', receiver: 'm2' } })
+  })
+})
+
+describe('boardRepository.update', () => {
+  it('maps the patch to columns, scopes to the id, and returns the mapped board', async () => {
+    // Arrange
+    resolved = {
+      data: {
+        id: 'b1',
+        name: 'Nieuw',
+        accent_hue: 260,
+        default_visibility: 'private',
+        created_by: 'u1',
+        created_at: '2026-04-01T00:00:00Z',
+      },
+      error: null,
+    }
+
+    // Act
+    const board = await boardRepository.update('b1', {
+      name: 'Nieuw',
+      accentHue: 260,
+      defaultVisibility: 'private',
+    })
+
+    // Assert
+    expect(calls.table).toBe('boards')
+    expect(calls.update).toEqual({ name: 'Nieuw', accent_hue: 260, default_visibility: 'private' })
+    expect(calls.eq).toContainEqual(['id', 'b1'])
+    expect(board).toMatchObject({ id: 'b1', name: 'Nieuw', accentHue: 260, defaultVisibility: 'private' })
+  })
+})
+
+describe('boardRepository.remove', () => {
+  it('deletes the board through the delete_board RPC', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await boardRepository.remove('b1')
+
+    // Assert
+    expect(calls.rpc).toEqual({ name: 'delete_board', args: { b: 'b1' } })
   })
 })
