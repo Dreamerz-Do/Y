@@ -2,6 +2,10 @@
 
 > Living document. Status per section: ✅ settled · 🟡 in progress · ⬜ to do
 > Purpose: this document serves as context and instruction for actually building the app.
+>
+> These markers describe **spec completeness**, not implementation. For what is
+> actually built — UI vs database-only, and what is deferred — see
+> [`STATUS.md`](STATUS.md).
 
 ---
 
