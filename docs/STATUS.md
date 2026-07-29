@@ -52,8 +52,8 @@ points / streaks / leaderboards, local-first offline editing.
 |---|:--:|:--:|:--:|---|
 | Create board (name + accent) | ✅ | ✅ | ✅ | via `create_board` RPC |
 | Overview / open / switch | ✅ | ✅ | ✅ | |
-| **Change board settings** (rename, accent, default visibility) | ❌ | ✅ | ✅ | RLS allows owner; **no UI to edit a board after creation** |
-| **Delete board** | ❌ | ✅ | ✅ | RLS allows owner (fixed in `20260729…`); **no delete button in the app yet** |
+| Change board settings (rename, accent, default visibility) | ✅ | ✅ | ✅ | owner-only settings screen (gear in the board header) |
+| Delete board | ✅ | ✅ | ✅ | owner-only, in the settings screen's danger zone |
 
 ### Members & roles (spec §4.2)
 | Capability | UI | DB/RLS | Tests | Notes |
@@ -99,16 +99,15 @@ points / streaks / leaderboards, local-first offline editing.
 | Dutch UI, English code | ✅ | — | |
 
 ### Authorisation matrix (spec §4.2) — enforcement summary
-Every row is enforced in the DB and covered by pgTAP. The only cells **not**
+Every row is enforced in the DB and covered by pgTAP. The one cell **not**
 reflected in the UI:
 
-- **Change board settings / Delete board** — no screen exists (see Boards
-  table). The permission is correct in the DB; there is nothing to click.
 - **Assign to another member (guest denial)** — enforced by the DB guard, not
   pre-empted in the UI.
 
-Everything else (invite, remove, change roles, manage groups, per-role
-visibility, create/edit/delete items) is both UI-exposed and DB-enforced.
+Everything else (change settings, delete board, invite, remove, change roles,
+manage groups, per-role visibility, create/edit/delete items) is both
+UI-exposed and DB-enforced.
 
 ---
 
@@ -140,19 +139,18 @@ fix (see roadmap).
 
 ## Roadmap — next iterations
 
-Ordered by value for finishing the product; the first two close real gaps this
-document exposes.
+Ordered by value for finishing the product.
 
-1. **Board settings + delete UI** — a board-settings screen (rename, accent,
-   default visibility) and a delete-board action. Both are already allowed by
-   RLS with no way to reach them.
-2. **Guest/member UI gating** — disable disallowed controls up front instead of
+- ~~Board settings + delete UI~~ — **done**: owner-only settings screen (rename,
+  accent, default visibility) and a delete-board action.
+
+1. **Guest/member UI gating** — disable disallowed controls up front instead of
    relying on a DB rejection on submit.
-3. **Android build & Play-Store path** — generate the Capacitor project, verify
+2. **Android build & Play-Store path** — generate the Capacitor project, verify
    the Android build, distinct dev/prod `applicationId`.
-4. **Type generation** — regenerate `database.ts` from the live schema; consider
+3. **Type generation** — regenerate `database.ts` from the live schema; consider
    a CI drift-check so it can't fall behind.
-5. **Production go-live** — provision the production Supabase + Firebase, then a
+4. **Production go-live** — provision the production Supabase + Firebase, then a
    gated first release (SETUP.md §6 checklist).
 
 Then the spec's "Later / out of scope" backlog:

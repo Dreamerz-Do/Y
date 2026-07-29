@@ -104,6 +104,43 @@ test.describe('interactions', () => {
     expect(rpcReq.postDataJSON()).toMatchObject({ target_email: 'nieuw@example.com' })
   })
 
+  test('renaming a board patches it and returns to the board', async ({ page }) => {
+    // Arrange
+    await seedSession(page)
+    await mockSupabase(page)
+    await page.goto('/b/board-1/settings')
+    await page.getByRole('heading', { name: 'Bordinstellingen' }).waitFor()
+    await page.getByLabel('Naam van het board').fill('Ons Huishouden')
+
+    // Act
+    const [patchReq] = await Promise.all([
+      expectRequest(page, '/rest/v1/boards', 'PATCH'),
+      page.getByRole('button', { name: 'Opslaan' }).click(),
+    ])
+
+    // Assert
+    expect(patchReq.postDataJSON()).toMatchObject({ name: 'Ons Huishouden' })
+    await expect(page).toHaveURL(/\/b\/board-1\/kalender$/)
+  })
+
+  test('deleting a board removes it and returns to the overview', async ({ page }) => {
+    // Arrange
+    await seedSession(page)
+    await mockSupabase(page)
+    await page.goto('/b/board-1/settings')
+    await page.getByRole('button', { name: 'Board verwijderen' }).click()
+
+    // Act
+    const [delReq] = await Promise.all([
+      expectRequest(page, '/rest/v1/boards', 'DELETE'),
+      page.getByRole('button', { name: 'Definitief verwijderen' }).click(),
+    ])
+
+    // Assert
+    expect(delReq.method()).toBe('DELETE')
+    await expect(page).toHaveURL(/\/$/)
+  })
+
   test('the account icon reaches the logout screen by touch', async ({ page }) => {
     // Arrange
     await seedSession(page)

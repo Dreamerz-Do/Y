@@ -7,6 +7,8 @@ const list = vi.fn()
 const members = vi.fn()
 const updateRole = vi.fn()
 const removeMember = vi.fn()
+const update = vi.fn()
+const remove = vi.fn()
 const groupList = vi.fn()
 const groupCreate = vi.fn()
 const groupSetMembers = vi.fn()
@@ -17,6 +19,8 @@ vi.mock('../api/boardRepository', () => ({
     members: (id: string) => members(id),
     updateRole: (mid: string, role: string) => updateRole(mid, role),
     removeMember: (mid: string) => removeMember(mid),
+    update: (id: string, patch: unknown) => update(id, patch),
+    remove: (id: string) => remove(id),
   },
 }))
 
@@ -36,6 +40,8 @@ beforeEach(() => {
   members.mockReset().mockResolvedValue([])
   updateRole.mockReset().mockResolvedValue(undefined)
   removeMember.mockReset().mockResolvedValue(undefined)
+  update.mockReset().mockResolvedValue({ id: 'b1', name: 'Nieuw', accentHue: 260, defaultVisibility: 'board', createdBy: 'u1' })
+  remove.mockReset().mockResolvedValue(undefined)
   groupList.mockReset().mockResolvedValue([])
   groupCreate.mockReset().mockResolvedValue({ id: 'g1' })
   groupSetMembers.mockReset().mockResolvedValue(undefined)
@@ -70,6 +76,43 @@ describe('useBoardStore.leaveBoard', () => {
 
     // Assert
     expect(removeMember).toHaveBeenCalledWith('m1')
+    expect(store.boards.map((b) => b.id)).toEqual(['b2'])
+  })
+})
+
+describe('useBoardStore.updateBoard', () => {
+  it('replaces the edited board in the local list with the returned row', async () => {
+    // Arrange
+    list.mockResolvedValueOnce([
+      { id: 'b1', name: 'Oud', accentHue: 1, defaultVisibility: 'board', createdBy: 'u1' },
+    ])
+    const store = useBoardStore()
+    await store.loadBoards()
+
+    // Act
+    await store.updateBoard('b1', { name: 'Nieuw', accentHue: 260 })
+
+    // Assert
+    expect(update).toHaveBeenCalledWith('b1', { name: 'Nieuw', accentHue: 260 })
+    expect(store.boardById('b1')).toMatchObject({ name: 'Nieuw', accentHue: 260 })
+  })
+})
+
+describe('useBoardStore.deleteBoard', () => {
+  it('removes the board from the local list', async () => {
+    // Arrange
+    list.mockResolvedValueOnce([
+      { id: 'b1', name: 'A', accentHue: 1, defaultVisibility: 'board', createdBy: 'u1' },
+      { id: 'b2', name: 'B', accentHue: 1, defaultVisibility: 'board', createdBy: 'u1' },
+    ])
+    const store = useBoardStore()
+    await store.loadBoards()
+
+    // Act
+    await store.deleteBoard('b1')
+
+    // Assert
+    expect(remove).toHaveBeenCalledWith('b1')
     expect(store.boards.map((b) => b.id)).toEqual(['b2'])
   })
 })

@@ -175,6 +175,19 @@ test.describe('authenticated', () => {
     await shot(page, '12-item-editor')
   })
 
+  test('board settings (owner)', async ({ page }) => {
+    // Arrange — the seeded user is owner of board-1, so the form is editable.
+    await mockSupabase(page)
+
+    // Act
+    await page.goto('/b/board-1/settings')
+    await expect(page.getByRole('heading', { name: 'Bordinstellingen' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Board verwijderen' })).toBeVisible()
+
+    // Assert
+    await shot(page, '13-board-settings')
+  })
+
   test('members and groups', async ({ page }) => {
     // Arrange
     await mockSupabase(page)
@@ -184,7 +197,7 @@ test.describe('authenticated', () => {
     await expect(page.getByRole('heading', { name: 'Leden', exact: true })).toBeVisible()
 
     // Assert
-    await shot(page, '13-members')
+    await shot(page, '14-members')
   })
 
   test('account screen', async ({ page }) => {
@@ -196,6 +209,6 @@ test.describe('authenticated', () => {
     await page.waitForLoadState('networkidle')
 
     // Assert
-    await shot(page, '14-account')
+    await shot(page, '15-account')
   })
 })

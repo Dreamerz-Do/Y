@@ -266,6 +266,9 @@ export async function mockSupabase(
 
     switch (table) {
       case 'boards':
+        // A settings edit uses .update().select().single(); a delete has no body.
+        if (method === 'PATCH') return json(route, { ...BOARDS[0], ...reqBody(route) })
+        if (method === 'DELETE') return json(route, [])
         return json(route, boards)
       case 'memberships':
         return json(route, MEMBERSHIPS)

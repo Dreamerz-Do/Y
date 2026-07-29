@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { boardRepository } from '../api/boardRepository'
+import { boardRepository, type BoardPatch } from '../api/boardRepository'
 import { groupRepository } from '../api/groupRepository'
 import type { Board, Group, Member, Role } from '../types/board'
 
@@ -82,6 +82,18 @@ export const useBoardStore = defineStore('boards', () => {
     return board
   }
 
+  /** Edit board settings (owner-only by RLS); reflect the result locally. */
+  async function updateBoard(boardId: string, patch: BoardPatch): Promise<void> {
+    const updated = await boardRepository.update(boardId, patch)
+    boards.value = boards.value.map((b) => (b.id === boardId ? updated : b))
+  }
+
+  /** Delete a board; it disappears from the list (memberships/items cascade). */
+  async function deleteBoard(boardId: string): Promise<void> {
+    await boardRepository.remove(boardId)
+    boards.value = boards.value.filter((b) => b.id !== boardId)
+  }
+
   function boardById(boardId: string): Board | undefined {
     return boards.value.find((b) => b.id === boardId)
   }
@@ -110,6 +122,8 @@ export const useBoardStore = defineStore('boards', () => {
     removeGroup,
     setGroupMembers,
     createBoard,
+    updateBoard,
+    deleteBoard,
     boardById,
     membersOf,
     groupsOf,
