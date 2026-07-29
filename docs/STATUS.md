@@ -86,7 +86,7 @@ points / streaks / leaderboards, local-first offline editing.
 | Visibility board / private / shared_with | ✅ | ✅ | ✅ | enforced by RLS |
 | Colour, assignee, date/time, notes | ✅ | ✅ | ✅ | |
 | Busy blocks (others' private dated items) | ✅ | ✅ | ✅ | content-free projection, spec §3.2 |
-| Assign to another member | 🟡 | ✅ | ✅ | picker shown to everyone; a **guest** is denied at the DB (not greyed out) |
+| Assign to another member | ✅ | ✅ | ✅ | a guest's assignee picker is limited to themselves; others' items open read-only |
 
 ### Board views & shell
 | Capability | UI | Tests | Notes |
@@ -99,27 +99,21 @@ points / streaks / leaderboards, local-first offline editing.
 | Dutch UI, English code | ✅ | — | |
 
 ### Authorisation matrix (spec §4.2) — enforcement summary
-Every row is enforced in the DB and covered by pgTAP. The one cell **not**
-reflected in the UI:
-
-- **Assign to another member (guest denial)** — enforced by the DB guard, not
-  pre-empted in the UI.
-
-Everything else (change settings, delete board, invite, remove, change roles,
-manage groups, per-role visibility, create/edit/delete items) is both
-UI-exposed and DB-enforced.
+Every row is enforced in the DB and covered by pgTAP, and every row is now also
+reflected in the UI. Owner-only screens are hidden behind `isOwner`; a guest's
+item controls are gated up front — the assignee picker offers only themselves,
+and an item they may not edit opens **read-only** rather than failing on save.
 
 ---
 
 ## Enforcement model (why UI and DB columns differ)
 
 Authorisation is **database-first**: RLS policies and guard triggers are the
-source of truth (hard rule 2). The UI *hides* owner-only screens (via `isOwner`)
-but does **not** proactively disable every guest/member restriction — e.g. a
-guest sees the assignee picker and the database rejects the assignment on
-submit. That is "correctly denied", but the denial can surface as an error
-rather than a greyed-out control. Closing that gap is UX polish, not a security
-fix (see roadmap).
+source of truth (hard rule 2). The DB always has the final say. The UI mirrors
+it up front so a user rarely hits a rejection: owner-only screens are hidden
+(via `isOwner`), a guest's assignee picker is limited to themselves, and an item
+a guest may not edit opens read-only. The DB checks remain the real boundary —
+the UI gating is convenience, not the guarantee.
 
 ---
 
@@ -141,17 +135,19 @@ fix (see roadmap).
 
 Ordered by value for finishing the product.
 
-- ~~Board settings + delete UI~~ — **done**: owner-only settings screen (rename,
-  accent, default visibility) and a delete-board action.
+- ~~Board settings + delete UI~~ — **done**: owner-only settings screen, plus
+  board deletion, leaving and item handover (spec 4.5).
+- ~~Guest/member UI gating~~ — **done**: a guest's assignee picker is limited to
+  themselves, and items they may not edit open read-only.
 
-1. **Guest/member UI gating** — disable disallowed controls up front instead of
-   relying on a DB rejection on submit.
-2. **Android build & Play-Store path** — generate the Capacitor project, verify
+1. **Android build & Play-Store path** — generate the Capacitor project, verify
    the Android build, distinct dev/prod `applicationId`.
-3. **Type generation** — regenerate `database.ts` from the live schema; consider
+2. **Type generation** — regenerate `database.ts` from the live schema; consider
    a CI drift-check so it can't fall behind.
-4. **Production go-live** — provision the production Supabase + Firebase, then a
+3. **Production go-live** — provision the production Supabase + Firebase, then a
    gated first release (SETUP.md §6 checklist).
+4. **Account deletion when sole owner** — resolve the remaining §4.5 edge (block
+   or force handover) so the deletion story is fully closed.
 
 Then the spec's "Later / out of scope" backlog:
 
