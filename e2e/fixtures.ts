@@ -39,6 +39,15 @@ export const BOARDS = [
     created_by: USER.id,
     created_at: '2026-06-12T09:00:00Z',
   },
+  {
+    // A board where the seeded user is the only member, so it can be deleted.
+    id: 'board-solo',
+    name: 'Alleen ik',
+    accent_hue: 25,
+    default_visibility: 'board',
+    created_by: USER.id,
+    created_at: '2026-06-20T09:00:00Z',
+  },
 ]
 
 const MEMBERSHIP_ME = 'mem-1'
@@ -64,6 +73,13 @@ export const MEMBERSHIPS = [
     board_id: 'board-1',
     role: 'guest',
     profiles: { display_name: 'Oma', color_hue: 45 },
+  },
+  {
+    id: 'mem-solo',
+    user_id: USER.id,
+    board_id: 'board-solo',
+    role: 'owner',
+    profiles: { display_name: 'Jeffrey', color_hue: 215 },
   },
 ]
 
@@ -270,8 +286,13 @@ export async function mockSupabase(
         if (method === 'PATCH') return json(route, { ...BOARDS[0], ...reqBody(route) })
         if (method === 'DELETE') return json(route, [])
         return json(route, boards)
-      case 'memberships':
-        return json(route, MEMBERSHIPS)
+      case 'memberships': {
+        // The query filters by board_id=eq.<id>; honour it so a solo board reads
+        // as a single member.
+        const filter = url.searchParams.get('board_id')?.replace(/^eq\./, '')
+        const rows = filter ? MEMBERSHIPS.filter((m) => m.board_id === filter) : MEMBERSHIPS
+        return json(route, rows)
+      }
       case 'groups':
         return json(route, GROUPS)
       case 'group_members':

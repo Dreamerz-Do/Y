@@ -23,6 +23,10 @@ const members = computed(() => boardStore.membersOf(props.boardId))
 const isOwner = computed(
   () => members.value.find((m) => m.userId === session.user?.id)?.role === 'owner',
 )
+// A board can only be deleted when no one else is left (spec 4.5); otherwise the
+// owner leaves and hands over their items from Leden & groepen.
+const otherMembers = computed(() => members.value.filter((m) => m.userId !== session.user?.id))
+const canDelete = computed(() => isOwner.value && otherMembers.value.length === 0)
 
 const visibilities: { value: Board['defaultVisibility']; label: string }[] = [
   { value: 'board', label: 'Iedereen' },
@@ -195,13 +199,18 @@ async function remove(): Promise<void> {
         <button
           type="button"
           class="h-12 w-full rounded-card border border-danger text-body font-medium text-danger disabled:opacity-50"
-          :disabled="saving"
+          :disabled="saving || !canDelete"
           @click="confirming = true"
         >
           Board verwijderen
         </button>
         <p class="mt-2 text-meta text-muted">
-          Het board en alle items, groepen en uitnodigingen erin worden permanent verwijderd.
+          <template v-if="canDelete">
+            Het board en alle items, groepen en uitnodigingen erin worden permanent verwijderd.
+          </template>
+          <template v-else>
+            Je kunt een board alleen verwijderen als je het enige lid bent. Verlaat het board via Leden &amp; groepen om je items over te dragen.
+          </template>
         </p>
       </template>
     </main>

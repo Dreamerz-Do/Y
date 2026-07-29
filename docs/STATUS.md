@@ -53,15 +53,15 @@ points / streaks / leaderboards, local-first offline editing.
 | Create board (name + accent) | ✅ | ✅ | ✅ | via `create_board` RPC |
 | Overview / open / switch | ✅ | ✅ | ✅ | |
 | Change board settings (rename, accent, default visibility) | ✅ | ✅ | ✅ | owner-only settings screen (gear in the board header) |
-| Delete board | ✅ | ✅ | ✅ | owner-only, in the settings screen's danger zone |
+| Delete board | ✅ | ✅ | ✅ | owner-only, and only when sole member; otherwise leave & hand over (spec 4.5) |
 
 ### Members & roles (spec §4.2)
 | Capability | UI | DB/RLS | Tests | Notes |
 |---|:--:|:--:|:--:|---|
 | Roles owner / member / guest | ✅ | ✅ | ✅ | role attaches to membership, per (user, board) |
 | Change a member's role | ✅ | ✅ | ✅ | owner-only, gated by `isOwner` |
-| Remove a member | ✅ | ✅ | ✅ | owner-only |
-| Leave a board (remove self) | ✅ | ✅ | ✅ | last-owner guard keeps ≥1 owner |
+| Remove a member | ✅ | ✅ | ✅ | owner-only; removed member's private items deleted, the rest stays |
+| Leave a board (remove self) | ✅ | ✅ | ✅ | owner hands items to a chosen owner; a member keeps board items, loses private (spec 4.5) |
 
 ### Groups
 | Capability | UI | DB/RLS | Tests | Notes |

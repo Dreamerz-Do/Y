@@ -123,21 +123,21 @@ test.describe('interactions', () => {
     await expect(page).toHaveURL(/\/b\/board-1\/kalender$/)
   })
 
-  test('deleting a board removes it and returns to the overview', async ({ page }) => {
-    // Arrange
+  test('deleting a sole-member board calls delete_board and returns to the overview', async ({ page }) => {
+    // Arrange — board-solo has only the seeded user, so delete is allowed.
     await seedSession(page)
     await mockSupabase(page)
-    await page.goto('/b/board-1/settings')
+    await page.goto('/b/board-solo/settings')
     await page.getByRole('button', { name: 'Board verwijderen' }).click()
 
     // Act
-    const [delReq] = await Promise.all([
-      expectRequest(page, '/rest/v1/boards', 'DELETE'),
+    const [rpcReq] = await Promise.all([
+      expectRequest(page, '/rest/v1/rpc/delete_board'),
       page.getByRole('button', { name: 'Definitief verwijderen' }).click(),
     ])
 
     // Assert
-    expect(delReq.method()).toBe('DELETE')
+    expect(rpcReq.postDataJSON()).toMatchObject({ b: 'board-solo' })
     await expect(page).toHaveURL(/\/$/)
   })
 

@@ -86,9 +86,20 @@ export const boardRepository = {
     return mapBoard(data)
   },
 
-  /** Delete a board. Owner-only by RLS; memberships, groups and items cascade. */
+  /** Delete a board — owner-only, and only when no other members remain
+   * (spec 4.5). The RPC re-checks authorisation; the board and its rows cascade. */
   async remove(boardId: string): Promise<void> {
-    const { error } = await supabase.from('boards').delete().eq('id', boardId)
+    const { error } = await supabase.rpc('delete_board', { b: boardId })
+    if (error) throw error
+  },
+
+  /** Leave a board (spec 4.5). Private items go; an owner hands the rest to the
+   * chosen receiving owner (a membership id). Uses auth.uid(), not a passed id. */
+  async leave(boardId: string, receiverMembershipId?: string): Promise<void> {
+    const { error } = await supabase.rpc(
+      'leave_board',
+      receiverMembershipId ? { b: boardId, receiver: receiverMembershipId } : { b: boardId },
+    )
     if (error) throw error
   },
 
@@ -111,10 +122,10 @@ export const boardRepository = {
     if (error) throw error
   },
 
-  /** Remove a membership. RLS allows an owner to remove anyone, or a member to
-   * remove themselves (leaving, spec 4.5); the guard keeps one owner. */
+  /** An owner removes another member (spec 4.5). The RPC deletes that member's
+   * private items and the membership; the last-owner guard still applies. */
   async removeMember(membershipId: string): Promise<void> {
-    const { error } = await supabase.from('memberships').delete().eq('id', membershipId)
+    const { error } = await supabase.rpc('remove_member', { m: membershipId })
     if (error) throw error
   },
 }

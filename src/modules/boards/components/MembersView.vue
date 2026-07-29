@@ -34,6 +34,12 @@ const myMembership = computed(() =>
   members.value.find((m) => m.userId === session.user?.id),
 )
 const isOwner = computed(() => myMembership.value?.role === 'owner')
+const otherMembers = computed(() => members.value.filter((m) => m.userId !== session.user?.id))
+const otherOwners = computed(() => otherMembers.value.filter((m) => m.role === 'owner'))
+
+// Owner-leave hands items to a chosen owner (spec 4.5), so it needs a picker.
+const leaveOwnerOpen = ref(false)
+const receiverId = ref<string | null>(null)
 
 const roles: { value: Role; label: string }[] = [
   { value: 'owner', label: 'Eigenaar' },
@@ -81,25 +87,47 @@ async function changeRole(membershipId: string, event: Event): Promise<void> {
 function askRemoveMember(member: Member): void {
   confirm.value = {
     title: `${member.name} verwijderen?`,
-    message: `${member.name} verliest toegang tot dit board. Alle items die ${member.name} heeft aangemaakt worden permanent verwijderd; toewijzingen aan ${member.name} vervallen.`,
+    message: `${member.name} verliest toegang tot dit board. De privé-items van ${member.name} worden verwijderd; hun overige items blijven op het board en toewijzingen aan ${member.name} vervallen.`,
     confirmLabel: 'Verwijderen',
     run: () => boardStore.removeMember(props.boardId, member.membershipId),
   }
 }
 
 function askLeave(): void {
-  const membershipId = myMembership.value?.membershipId
-  if (!membershipId) return
+  actionError.value = ''
+  if (!otherMembers.value.length) return // sole member: delete via settings
+  if (isOwner.value && !otherOwners.value.length) {
+    actionError.value =
+      'Je bent de enige eigenaar. Maak eerst iemand anders eigenaar voordat je het board verlaat.'
+    return
+  }
+  if (isOwner.value) {
+    // Owner: choose which owner receives the items, then confirm.
+    receiverId.value = otherOwners.value[0]?.membershipId ?? null
+    leaveOwnerOpen.value = true
+    return
+  }
+  // Member: private items go, the rest stays.
   confirm.value = {
     title: 'Board verlaten?',
     message:
-      'Je verliest toegang tot dit board. Alle items die je hebt aangemaakt worden permanent verwijderd; toewijzingen aan jou vervallen.',
+      'Je verliest toegang tot dit board. Je privé-items worden verwijderd; je overige items blijven op het board en toewijzingen aan jou vervallen.',
     confirmLabel: 'Verlaten',
     run: async () => {
-      await boardStore.leaveBoard(props.boardId, membershipId)
+      await boardStore.leaveBoard(props.boardId)
       await router.push({ name: 'boards' })
     },
   }
+}
+
+async function confirmLeaveOwner(): Promise<void> {
+  const receiver = receiverId.value
+  leaveOwnerOpen.value = false
+  if (!receiver) return
+  await guard(async () => {
+    await boardStore.leaveBoard(props.boardId, receiver)
+    await router.push({ name: 'boards' })
+  })
 }
 
 function askWithdraw(invitationId: string, email: string): void {
@@ -251,9 +279,10 @@ async function addGroup(): Promise<void> {
         </div>
       </template>
 
-      <!-- Leave -->
+      <!-- Leave (only when someone else remains; a sole member deletes the board
+           from its settings instead) -->
       <button
-        v-if="myMembership"
+        v-if="myMembership && otherMembers.length"
         type="button"
         class="mt-8 h-12 w-full rounded-card border border-danger text-body font-medium text-danger"
         @click="askLeave"
@@ -271,5 +300,41 @@ async function addGroup(): Promise<void> {
       @confirm="confirmAction"
       @cancel="confirm = null"
     />
+
+    <!-- Owner leaving: hand the items to a chosen owner -->
+    <template v-if="leaveOwnerOpen">
+      <div class="absolute inset-0" :style="{ background: 'var(--color-overlay)' }" @click="leaveOwnerOpen = false"></div>
+      <div
+        class="absolute inset-x-0 bottom-0 flex flex-col gap-3.5 rounded-t-sheet bg-bg px-5 pb-7 pt-3 shadow-lg"
+        role="dialog"
+        aria-label="Board verlaten"
+      >
+        <div class="mx-auto h-1 w-9 rounded-full bg-border" aria-hidden="true"></div>
+        <h2 class="text-title font-medium text-text">Board verlaten</h2>
+        <p class="text-body2 text-muted">
+          Je privé-items worden verwijderd. Je overige items gaan naar de gekozen eigenaar; toewijzingen blijven staan.
+        </p>
+        <p class="text-label font-medium text-muted">Overdragen aan</p>
+        <div class="flex flex-col gap-1.5">
+          <label
+            v-for="o in otherOwners"
+            :key="o.membershipId"
+            class="flex items-center gap-3 rounded-card border px-3.5 py-2.5"
+            :class="receiverId === o.membershipId ? 'border-accent bg-surface2' : 'border-border'"
+          >
+            <input v-model="receiverId" type="radio" :value="o.membershipId" name="receiver" class="h-5 w-5" />
+            <span class="text-body text-text">{{ o.name }}</span>
+          </label>
+        </div>
+        <button
+          type="button"
+          class="h-[52px] rounded-card bg-accent text-lg font-medium text-accent-text disabled:opacity-50"
+          :disabled="!receiverId"
+          @click="confirmLeaveOwner"
+        >
+          Board verlaten
+        </button>
+      </div>
+    </template>
   </div>
 </template>

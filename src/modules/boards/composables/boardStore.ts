@@ -46,9 +46,10 @@ export const useBoardStore = defineStore('boards', () => {
     await loadMembers(boardId)
   }
 
-  /** The signed-in user leaves a board; the board disappears from their list. */
-  async function leaveBoard(boardId: string, membershipId: string): Promise<void> {
-    await boardRepository.removeMember(membershipId)
+  /** The signed-in user leaves a board (spec 4.5). An owner passes the receiving
+   * owner's membership id; the board disappears from their list. */
+  async function leaveBoard(boardId: string, receiverMembershipId?: string): Promise<void> {
+    await boardRepository.leave(boardId, receiverMembershipId)
     boards.value = boards.value.filter((b) => b.id !== boardId)
   }
 

@@ -164,7 +164,7 @@ describe('boardRepository.updateRole', () => {
 })
 
 describe('boardRepository.removeMember', () => {
-  it('deletes the membership by id', async () => {
+  it('removes the member through the remove_member RPC', async () => {
     // Arrange
     resolved = { data: null, error: null }
 
@@ -172,9 +172,31 @@ describe('boardRepository.removeMember', () => {
     await boardRepository.removeMember('m1')
 
     // Assert
-    expect(calls.table).toBe('memberships')
-    expect(calls.deleted).toBe(true)
-    expect(calls.eq).toContainEqual(['id', 'm1'])
+    expect(calls.rpc).toEqual({ name: 'remove_member', args: { m: 'm1' } })
+  })
+})
+
+describe('boardRepository.leave', () => {
+  it('leaves without a receiver for a plain member', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await boardRepository.leave('b1')
+
+    // Assert
+    expect(calls.rpc).toEqual({ name: 'leave_board', args: { b: 'b1' } })
+  })
+
+  it('passes the receiving owner when one is given', async () => {
+    // Arrange
+    resolved = { data: null, error: null }
+
+    // Act
+    await boardRepository.leave('b1', 'm2')
+
+    // Assert
+    expect(calls.rpc).toEqual({ name: 'leave_board', args: { b: 'b1', receiver: 'm2' } })
   })
 })
 
@@ -209,7 +231,7 @@ describe('boardRepository.update', () => {
 })
 
 describe('boardRepository.remove', () => {
-  it('deletes the board by id', async () => {
+  it('deletes the board through the delete_board RPC', async () => {
     // Arrange
     resolved = { data: null, error: null }
 
@@ -217,8 +239,6 @@ describe('boardRepository.remove', () => {
     await boardRepository.remove('b1')
 
     // Assert
-    expect(calls.table).toBe('boards')
-    expect(calls.deleted).toBe(true)
-    expect(calls.eq).toContainEqual(['id', 'b1'])
+    expect(calls.rpc).toEqual({ name: 'delete_board', args: { b: 'b1' } })
   })
 })
