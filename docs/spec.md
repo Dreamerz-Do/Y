@@ -221,6 +221,8 @@ Three roles: `owner`, `member`, `guest`.
 | Edit other members' items | ✅ | ✅ | ❌ |
 | Assign an item to another member | ✅ | ✅ | ❌ |
 
+The matrix is the *role* permission. Two rows carry an extra constraint beyond the role, detailed in 4.5: **Delete board** is allowed only when no other members remain, and **remove members / leaving** delete the departing person's private items while keeping the rest (an owner hands theirs to a receiving owner).
+
 **The `guest` role**
 Sees only what has been explicitly shared with them or assigned to them. This handles "not everyone needs to see everything" at role level rather than per item — without a word about family relationships. Useful for a younger child, a babysitter, or a grandparent involved only in the school run.
 
@@ -647,10 +649,12 @@ The development environment is filled with seed data, never with a copy of produ
 
 ## Open questions
 
-1. Sole owner deleting their account — delete the board with them, or block until ownership is transferred? (4.5)
-2. Board-wide items of a departing member — delete or transfer? (4.5)
-3. Does an outstanding invitation expire? (4.4)
-4. User stories and acceptance criteria for items (3.1)
-5. Capacitor: auth redirect and environment per build (6.7)
-6. Design tokens (7.9)
-7. RLS policy tests in CI (9.8)
+1. Sole owner deleting their **account** — delete the board with them, or block until ownership is transferred? (4.5) Board *deletion* by a sole owner is resolved (only when alone; otherwise hand over); account deletion is not yet addressed.
+2. Does an outstanding invitation expire? (4.4)
+3. User stories and acceptance criteria for items (3.1)
+4. Capacitor: auth redirect and environment per build (6.7)
+5. Design tokens (7.9)
+
+**Resolved** (kept here for traceability):
+- Board-wide items of a departing member — *keep, don't delete*: re-owned to the receiving owner when an owner leaves, or left in place when a member leaves; only private items are erased (4.5).
+- RLS policy tests in CI — done: the `rls-policies` pgTAP job in `ci.yml` (9.8).
