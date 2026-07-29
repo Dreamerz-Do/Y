@@ -8,6 +8,12 @@ The full specification lives in [`docs/spec.md`](docs/spec.md). That document
 describes behaviour, permissions and scope. Do not deviate from it — report a
 discrepancy instead of quietly resolving it.
 
+[`docs/STATUS.md`](docs/STATUS.md) is the companion: **spec.md is what the app
+should be, STATUS.md is what is actually built** — including which capabilities
+exist in the UI, which are enforced only in the database, and what is deferred.
+Read it to know the current state, and update it in the same change when a
+feature lands or a gap closes.
+
 Key sections:
 
 | Topic | Section |
