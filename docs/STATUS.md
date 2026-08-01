@@ -45,7 +45,7 @@ points / streaks / leaderboards, local-first offline editing.
 |---|:--:|:--:|:--:|---|
 | Register (sign-up) | ✅ | ✅ | ✅ | profile row auto-created by `handle_new_user` |
 | Sign in / out | ✅ | ✅ | ✅ | |
-| Delete account | ✅ | ✅ | ✅ | `delete_current_user` SECURITY DEFINER |
+| Delete account | ✅ | ✅ | ✅ | `delete_current_user(handovers)`; solo boards auto-deleted, solely-owned shared boards prompt for a successor (spec 4.5) |
 
 ### Boards
 | Capability | UI | DB/RLS | Tests | Notes |
@@ -139,6 +139,9 @@ Ordered by value for finishing the product.
   board deletion, leaving and item handover (spec 4.5).
 - ~~Guest/member UI gating~~ — **done**: a guest's assignee picker is limited to
   themselves, and items they may not edit open read-only.
+- ~~Account deletion when sole owner~~ — **done**: prompt-to-pick a successor —
+  solo boards auto-delete, solely-owned shared boards hand over to a nominated
+  member (spec 4.5).
 
 1. **Android build & Play-Store path** — generate the Capacitor project, verify
    the Android build, distinct dev/prod `applicationId`.
@@ -146,8 +149,6 @@ Ordered by value for finishing the product.
    a CI drift-check so it can't fall behind.
 3. **Production go-live** — provision the production Supabase + Firebase, then a
    gated first release (SETUP.md §6 checklist).
-4. **Account deletion when sole owner** — resolve the remaining §4.5 edge (block
-   or force handover) so the deletion story is fully closed.
 
 Then the spec's "Later / out of scope" backlog:
 

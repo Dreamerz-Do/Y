@@ -3,11 +3,13 @@ import { setActivePinia, createPinia } from 'pinia'
 
 const signUp = vi.fn()
 const deleteAccount = vi.fn()
+const boardsAwaitingHandover = vi.fn()
 
 vi.mock('@/modules/auth/api/authRepository', () => ({
   authRepository: {
     signUp: (e: string, p: string, n: string) => signUp(e, p, n),
-    deleteAccount: () => deleteAccount(),
+    deleteAccount: (h: Record<string, string>) => deleteAccount(h),
+    boardsAwaitingHandover: () => boardsAwaitingHandover(),
   },
 }))
 
@@ -17,6 +19,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   signUp.mockReset()
   deleteAccount.mockReset().mockResolvedValue(undefined)
+  boardsAwaitingHandover.mockReset().mockResolvedValue([])
 })
 
 describe('useSessionStore.signUp', () => {
@@ -59,5 +62,18 @@ describe('useSessionStore.deleteAccount', () => {
     // Assert
     expect(deleteAccount).toHaveBeenCalled()
     expect(store.user).toBeNull()
+  })
+
+  it('passes the successor map through to the repository', async () => {
+    // Arrange
+    const store = useSessionStore()
+    store.user = { id: 'u1', email: 'a@b.nl' }
+    const handovers = { 'board-1': 'mem-2' }
+
+    // Act
+    await store.deleteAccount(handovers)
+
+    // Assert
+    expect(deleteAccount).toHaveBeenCalledWith(handovers)
   })
 })

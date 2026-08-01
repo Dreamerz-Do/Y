@@ -365,8 +365,12 @@ export type Database = {
         Returns: undefined
       }
       delete_current_user: {
-        Args: Record<PropertyKey, never>
+        Args: { handovers?: Json }
         Returns: undefined
+      }
+      boards_awaiting_owner_handover: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       create_board: {
         Args: { board_name: string; accent?: number }

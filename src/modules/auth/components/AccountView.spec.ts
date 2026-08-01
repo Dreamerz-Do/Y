@@ -17,34 +17,64 @@ describe('AccountView', () => {
     // Arrange
     const session = useSessionStore()
     session.user = { id: 'u1', email: 'a@b.nl' }
+    vi.spyOn(session, 'boardsAwaitingHandover').mockResolvedValue([])
     const spy = vi.spyOn(session, 'deleteAccount').mockResolvedValue()
     const wrapper = mount(AccountView)
 
     // Act
     await wrapper.get('button.border-danger').trigger('click')
+    await flushPromises()
 
     // Assert
     const dialog = wrapper.get('[role="alertdialog"]')
     expect(dialog.text()).toContain('permanent verwijderd')
     await dialog.get('button.bg-danger').trigger('click')
     await flushPromises()
-    expect(spy).toHaveBeenCalled()
+    expect(spy).toHaveBeenCalledWith({})
     expect(replace).toHaveBeenCalledWith('/login')
   })
 
-  it('surfaces an actionable message when deletion is refused', async () => {
+  it('asks for a successor per solely-owned board, then hands it over on delete', async () => {
     // Arrange
     const session = useSessionStore()
     session.user = { id: 'u1', email: 'a@b.nl' }
-    vi.spyOn(session, 'deleteAccount').mockRejectedValue(new Error('sole owner'))
+    vi.spyOn(session, 'boardsAwaitingHandover').mockResolvedValue([
+      {
+        boardId: 'board-1',
+        boardName: 'Huishouden',
+        candidates: [{ membershipId: 'mem-2', name: 'Sanne' }],
+      },
+    ])
+    const spy = vi.spyOn(session, 'deleteAccount').mockResolvedValue()
     const wrapper = mount(AccountView)
 
     // Act
     await wrapper.get('button.border-danger').trigger('click')
+    await flushPromises()
+    // The successor picker appears; the sole candidate is pre-selected.
+    const picker = wrapper.get('[role="dialog"]')
+    expect(picker.text()).toContain('Eigenaarschap overdragen')
+    await picker.get('button').trigger('click')
     await wrapper.get('[role="alertdialog"] button.bg-danger').trigger('click')
     await flushPromises()
 
     // Assert
-    expect(wrapper.get('[role="alert"]').text()).toContain('enige eigenaar')
+    expect(spy).toHaveBeenCalledWith({ 'board-1': 'mem-2' })
+    expect(replace).toHaveBeenCalledWith('/login')
+  })
+
+  it('surfaces a neutral message when the lookup fails', async () => {
+    // Arrange
+    const session = useSessionStore()
+    session.user = { id: 'u1', email: 'a@b.nl' }
+    vi.spyOn(session, 'boardsAwaitingHandover').mockRejectedValue(new Error('boom'))
+    const wrapper = mount(AccountView)
+
+    // Act
+    await wrapper.get('button.border-danger').trigger('click')
+    await flushPromises()
+
+    // Assert
+    expect(wrapper.get('[role="alert"]').text()).toContain('iets mis')
   })
 })
