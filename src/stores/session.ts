@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authRepository, type AuthedUser } from '@/modules/auth/api/authRepository'
+import { authRepository, type AuthedUser, type HandoverBoard } from '@/modules/auth/api/authRepository'
 
 // Client-state store: who is signed in and which board is active. It holds no
 // server data (items, boards) — those live in their own domain stores
@@ -38,8 +38,15 @@ export const useSessionStore = defineStore('session', () => {
     lastBoardId.value = null
   }
 
-  async function deleteAccount(): Promise<void> {
-    await authRepository.deleteAccount()
+  /** Boards the user solely owns while others remain, needing a successor
+   * before account deletion (spec 4.5). This is a passthrough query, not stored
+   * server state — the store keeps only client state. */
+  function boardsAwaitingHandover(): Promise<HandoverBoard[]> {
+    return authRepository.boardsAwaitingHandover()
+  }
+
+  async function deleteAccount(handovers: Record<string, string> = {}): Promise<void> {
+    await authRepository.deleteAccount(handovers)
     user.value = null
     lastBoardId.value = null
   }
@@ -57,6 +64,7 @@ export const useSessionStore = defineStore('session', () => {
     signIn,
     signUp,
     signOut,
+    boardsAwaitingHandover,
     deleteAccount,
     rememberBoard,
   }

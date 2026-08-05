@@ -265,7 +265,11 @@ Every board has a configurable default audience for new items. That way, forgett
 - While others are still present, deletion is not offered; an owner leaves (handing over items) instead.
 
 **Account deletion**
-- Everything the user owns is deleted; all assignments to them are cleared. This is the blunt "erase everything I created" path, distinct from leaving a single board (which hands over or keeps shared content).
+- Account deletion follows the same principle as leaving, applied to every board at once: the user's **private items are deleted**, and their **other items are kept** on the board. Only personal data is erased (the GDPR view, resolved #2) — not everything created in a shared space.
+- Kept items are re-owned to a fictive **"deleted user"** placeholder, so no real person is credited with authoring them; each board's owners keep full control over them.
+- A board the user **solely owns while others remain** must keep an owner, so a **successor is nominated per board** at deletion time and promoted to owner. Only the board's ownership transfers this way; the items themselves go to the placeholder like everywhere else.
+- A **solo** board (the user is its only member) is deleted with the account.
+- All assignments to the user are cleared.
 
 **Warnings are mandatory**
 Deletion is permanent and affects other people's data. Every action above requires an explicit confirmation that names *what* disappears and how much — not a generic "are you sure?".
@@ -275,6 +279,8 @@ Deletion is permanent and affects other people's data. Every action above requir
 1. **Sole owner and board deletion.** A board is deleted only when its owner is the last member. While others remain, ownership is handed over — an owner leaves and nominates a receiver — rather than the board vanishing under everyone.
 
 2. **A departing person's shared content.** Board- and selection-visible items are **kept**: re-owned to the receiving owner when an owner leaves, or left in place when a member leaves. Only **private** items are erased. This matches the GDPR view that erasure concerns personal data, not all content created in a shared space.
+
+3. **Sole owner deleting their account.** Resolved: account deletion deletes only the user's private items and **keeps the rest**, re-owned to a "deleted user" placeholder so board owners retain control. A solo board is deleted with the account; a board the user solely owns while members remain needs a nominated successor, promoted to owner, so the board keeps an owner. See "Account deletion" above.
 
 ### 4.6 Visibility — summary
 
@@ -649,12 +655,12 @@ The development environment is filled with seed data, never with a copy of produ
 
 ## Open questions
 
-1. Sole owner deleting their **account** — delete the board with them, or block until ownership is transferred? (4.5) Board *deletion* by a sole owner is resolved (only when alone; otherwise hand over); account deletion is not yet addressed.
-2. Does an outstanding invitation expire? (4.4)
-3. User stories and acceptance criteria for items (3.1)
-4. Capacitor: auth redirect and environment per build (6.7)
-5. Design tokens (7.9)
+1. Does an outstanding invitation expire? (4.4)
+2. User stories and acceptance criteria for items (3.1)
+3. Capacitor: auth redirect and environment per build (6.7)
+4. Design tokens (7.9)
 
 **Resolved** (kept here for traceability):
+- Sole owner deleting their **account** — deletes only private items and *keeps the rest* (re-owned to a "deleted user" placeholder); a solo board is deleted with the account; a solely-owned board with members needs a nominated successor promoted to owner (4.5).
 - Board-wide items of a departing member — *keep, don't delete*: re-owned to the receiving owner when an owner leaves, or left in place when a member leaves; only private items are erased (4.5).
 - RLS policy tests in CI — done: the `rls-policies` pgTAP job in `ci.yml` (9.8).

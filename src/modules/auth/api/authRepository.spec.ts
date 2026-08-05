@@ -10,7 +10,7 @@ vi.mock('@/shared/lib/supabaseClient', () => ({
       signUp: (args: unknown) => signUp(args),
       signOut: () => signOut(),
     },
-    rpc: (name: string) => rpc(name),
+    rpc: (name: string, args?: unknown) => rpc(name, args),
   },
 }))
 
@@ -58,7 +58,7 @@ describe('authRepository.signUp', () => {
 })
 
 describe('authRepository.deleteAccount', () => {
-  it('calls the delete RPC then signs out', async () => {
+  it('calls the delete RPC with an empty map then signs out', async () => {
     // Arrange
     rpc.mockResolvedValue({ error: null })
 
@@ -66,8 +66,19 @@ describe('authRepository.deleteAccount', () => {
     await authRepository.deleteAccount()
 
     // Assert
-    expect(rpc).toHaveBeenCalledWith('delete_current_user')
+    expect(rpc).toHaveBeenCalledWith('delete_current_user', { handovers: {} })
     expect(signOut).toHaveBeenCalled()
+  })
+
+  it('forwards the successor map to the RPC', async () => {
+    // Arrange
+    rpc.mockResolvedValue({ error: null })
+
+    // Act
+    await authRepository.deleteAccount({ 'board-1': 'mem-2' })
+
+    // Assert
+    expect(rpc).toHaveBeenCalledWith('delete_current_user', { handovers: { 'board-1': 'mem-2' } })
   })
 
   it('does not sign out when the delete RPC fails', async () => {
@@ -77,5 +88,44 @@ describe('authRepository.deleteAccount', () => {
     // Act + Assert
     await expect(authRepository.deleteAccount()).rejects.toBeTruthy()
     expect(signOut).not.toHaveBeenCalled()
+  })
+})
+
+describe('authRepository.boardsAwaitingHandover', () => {
+  it('maps the RPC rows to camelCase', async () => {
+    // Arrange
+    rpc.mockResolvedValue({
+      data: [
+        {
+          board_id: 'board-1',
+          board_name: 'Huishouden',
+          candidates: [{ membership_id: 'mem-2', name: 'Sanne' }],
+        },
+      ],
+      error: null,
+    })
+
+    // Act
+    const boards = await authRepository.boardsAwaitingHandover()
+
+    // Assert
+    expect(boards).toEqual([
+      {
+        boardId: 'board-1',
+        boardName: 'Huishouden',
+        candidates: [{ membershipId: 'mem-2', name: 'Sanne' }],
+      },
+    ])
+  })
+
+  it('returns an empty list when the RPC yields no rows', async () => {
+    // Arrange
+    rpc.mockResolvedValue({ data: null, error: null })
+
+    // Act
+    const boards = await authRepository.boardsAwaitingHandover()
+
+    // Assert
+    expect(boards).toEqual([])
   })
 })
