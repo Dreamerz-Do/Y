@@ -1,29 +1,74 @@
--- Account deletion when you solely own a board (spec 4.5, open question 1).
+-- Account deletion (spec 4.5, resolved question 1).
 --
--- The old delete_current_user() refused outright while the user was the sole
--- owner of any board. That closed the door but never opened another: the only
--- way forward was to leave every such board by hand first. This resolves the
--- question with "prompt to pick a successor":
+-- Account deletion is now consistent with leaving a board rather than a blunt
+-- "erase everything I created": on every board that survives, the user's
+-- private items are deleted and their other items are KEPT, re-owned to a
+-- fictive "deleted user" sentinel so no real person is falsely credited and the
+-- board's owners keep full control (they may edit any item on the board, RLS
+-- can_edit_others). Concretely:
 --
---   * A SOLO board (the user is its only member) is deleted with the account —
---     nobody else's content goes with it.
---   * A board the user SOLELY OWNS while others are still members cannot simply
---     vanish (it would take the household's shared list with it) nor be left
---     ownerless. So the caller nominates a receiving member per board; that
---     member is promoted to owner and the departing owner's items are handed
---     over exactly as `leave_board` does — private items deleted, every other
---     item re-owned by the successor with assignees kept (spec 4.5, resolved 2).
---   * Everywhere else account deletion stays the blunt "erase everything I
---     created" path (spec 4.5): on a board that already has another owner, or
---     where the user is only a member/guest, the items they created are deleted.
+--   * A SOLO board (the user is its only member) is deleted with the account.
+--   * A board the user SOLELY OWNS while others remain must keep an owner, so
+--     the caller nominates a successor per board (via boards_awaiting_owner_
+--     handover()); that member is promoted to owner. The board-level ownership
+--     transfers; the items themselves go to the sentinel like everywhere else.
+--   * On every other board (another owner already present, or the user is only
+--     a member/guest) nothing needs nominating — private items go, the rest is
+--     reattributed to the sentinel in place.
 --
--- `handovers` is a JSON object mapping {board_id: receiver_membership_id}. The
--- UI collects it up front via boards_awaiting_owner_handover(); the function
--- still validates every entry itself because it runs SECURITY DEFINER and must
--- not trust its input.
+-- `handovers` is a JSON object mapping {board_id: successor_membership_id},
+-- required only for the solely-owned-with-members boards. The function runs
+-- SECURITY DEFINER and validates every entry itself.
 
 begin;
 
+-- ---------------------------------------------------------------------------
+-- The "deleted user" sentinel. A single, well-known auth user that owns items
+-- left behind by deleted accounts. It is a member of no board, so it never
+-- appears in member lists nor counts toward owners; it exists only to satisfy
+-- items.created_by (NOT NULL, ON DELETE CASCADE) without deleting kept items.
+-- ---------------------------------------------------------------------------
+insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data)
+values
+  ('00000000-0000-0000-0000-0000000000de', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'deleted-user@system.invalid', now(), now(),
+   '{"provider":"system"}', '{"display_name":"Verwijderde gebruiker"}')
+on conflict (id) do nothing;
+
+-- handle_new_user seeds the profile from the metadata above; make it explicit
+-- and idempotent in case the trigger is ever absent.
+insert into public.profiles (id, display_name)
+values ('00000000-0000-0000-0000-0000000000de', 'Verwijderde gebruiker')
+on conflict (id) do update set display_name = excluded.display_name;
+
+-- ---------------------------------------------------------------------------
+-- The assignment guard should police assignment *changes*, not every update.
+-- Reattributing created_by (below, and when an owner leaves) leaves assignee_id
+-- untouched, so skip the check when it has not changed. Insertions and genuine
+-- assignee changes are still fully guarded — this narrows nothing security-wise.
+-- ---------------------------------------------------------------------------
+create or replace function public.guard_item_assignment()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_op = 'UPDATE' and new.assignee_id is not distinct from old.assignee_id then
+    return new;
+  end if;
+  if new.assignee_id is not null
+     and new.assignee_id <> public.my_membership_id(new.board_id)
+     and not public.can_edit_others(new.board_id) then
+    raise exception 'only owners and members may assign items to others';
+  end if;
+  return new;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Account deletion.
+-- ---------------------------------------------------------------------------
 -- The signature changes (gains a jsonb argument with a default), so drop the
 -- old zero-argument function first — CREATE OR REPLACE would otherwise leave an
 -- ambiguous overload for a no-argument call.
@@ -37,9 +82,9 @@ set search_path = public, auth
 as $$
 declare
   uid uuid := auth.uid();
+  sentinel constant uuid := '00000000-0000-0000-0000-0000000000de';
   rec record;
   receiver_mid uuid;
-  receiver_uid uuid;
 begin
   if uid is null then
     raise exception 'not authenticated';
@@ -54,8 +99,9 @@ begin
     and not exists (select 1 from public.memberships m
                     where m.board_id = b.id and m.user_id <> uid);
 
-  -- 2. Boards I solely own that still have other members: nominate a successor
-  --    from the caller's map and hand over as an owner leaving would.
+  -- 2. Boards I solely own that still have other members must keep an owner:
+  --    promote the nominated successor. Only the board-level ownership moves;
+  --    the items themselves go to the sentinel in step 4 like everywhere else.
   for rec in
     select m.board_id
     from public.memberships m
@@ -69,42 +115,37 @@ begin
     if receiver_mid is null then
       raise exception 'choose an owner to receive the boards you solely own';
     end if;
-
-    -- The receiver must be another member of this very board (never me).
-    select o.user_id into receiver_uid
-    from public.memberships o
-    where o.id = receiver_mid and o.board_id = rec.board_id and o.user_id <> uid;
-    if receiver_uid is null then
-      raise exception 'the chosen receiver is not a member of this board';
+    -- The successor must be another member of this very board (never me).
+    if not exists (
+      select 1 from public.memberships o
+      where o.id = receiver_mid and o.board_id = rec.board_id and o.user_id <> uid
+    ) then
+      raise exception 'the chosen successor is not a member of this board';
     end if;
-
-    -- Promote the successor, then hand over (spec 4.5): private items go, the
-    -- rest is re-owned with assignees untouched.
     update public.memberships set role = 'owner' where id = receiver_mid;
-
-    delete from public.items
-    where board_id = rec.board_id and created_by = uid and visibility = 'private';
-
-    update public.items set created_by = receiver_uid
-    where board_id = rec.board_id and created_by = uid;
   end loop;
 
-  -- 3. The blunt path everywhere else. Handed-over items now belong to the
-  --    successor and solo boards are gone, so this clears only my remaining
-  --    items (on boards that keep another owner, or where I was a member/guest).
-  delete from public.items where created_by = uid;
+  -- 3. Private items are personal and always deleted.
+  delete from public.items where created_by = uid and visibility = 'private';
 
-  -- 4. boards.created_by is provenance with an ON DELETE RESTRICT guard. Hand
-  --    any board I created that survives to another owner — every surviving one
-  --    has one now (a co-owner, or the successor promoted in step 2).
+  -- 4. Everything else I created is KEPT but re-owned to the sentinel, so the
+  --    board's owners retain control without crediting a real person. (Solo
+  --    boards are already gone; their items went with them.)
+  update public.items set created_by = sentinel where created_by = uid;
+
+  -- 5. boards.created_by is provenance with an ON DELETE RESTRICT guard. Hand
+  --    any surviving board I created to a remaining owner (fallback: sentinel,
+  --    though every surviving board has a real owner by now).
   update public.boards b
-     set created_by = (
-       select m.user_id from public.memberships m
-       where m.board_id = b.id and m.role = 'owner' and m.user_id <> uid
-       limit 1)
+     set created_by = coalesce(
+       (select m.user_id from public.memberships m
+        where m.board_id = b.id and m.role = 'owner' and m.user_id <> uid
+        limit 1),
+       sentinel)
    where b.created_by = uid;
 
-  -- 5. Removing the auth user cascades my remaining memberships and profile. No
+  -- 6. Removing the auth user cascades my remaining memberships and profile;
+  --    assignments to me on others' items clear via the assignee_id FK. No
   --    surviving board is down to me as its last owner, so the guard passes.
   delete from auth.users where id = uid;
 end;

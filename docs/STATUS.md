@@ -45,7 +45,7 @@ points / streaks / leaderboards, local-first offline editing.
 |---|:--:|:--:|:--:|---|
 | Register (sign-up) | ✅ | ✅ | ✅ | profile row auto-created by `handle_new_user` |
 | Sign in / out | ✅ | ✅ | ✅ | |
-| Delete account | ✅ | ✅ | ✅ | `delete_current_user(handovers)`; solo boards auto-deleted, solely-owned shared boards prompt for a successor (spec 4.5) |
+| Delete account | ✅ | ✅ | ✅ | `delete_current_user(handovers)`; deletes only private items, keeps the rest (re-owned to a "deleted user" sentinel); solo boards auto-deleted, solely-owned shared boards prompt for a successor (spec 4.5) |
 
 ### Boards
 | Capability | UI | DB/RLS | Tests | Notes |
@@ -139,9 +139,10 @@ Ordered by value for finishing the product.
   board deletion, leaving and item handover (spec 4.5).
 - ~~Guest/member UI gating~~ — **done**: a guest's assignee picker is limited to
   themselves, and items they may not edit open read-only.
-- ~~Account deletion when sole owner~~ — **done**: prompt-to-pick a successor —
-  solo boards auto-delete, solely-owned shared boards hand over to a nominated
-  member (spec 4.5).
+- ~~Account deletion when sole owner~~ — **done**: account deletion mirrors
+  leaving — private items deleted, the rest kept (re-owned to a "deleted user"
+  sentinel); solo boards auto-delete; a solely-owned shared board needs a
+  nominated successor promoted to owner (spec 4.5).
 
 1. **Android build & Play-Store path** — generate the Capacitor project, verify
    the Android build, distinct dev/prod `applicationId`.

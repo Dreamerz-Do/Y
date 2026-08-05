@@ -117,7 +117,8 @@ async function deleteAccount(): Promise<void> {
         {{ busy ? 'Bezig…' : 'Account verwijderen' }}
       </button>
       <p class="mt-2 text-meta text-muted">
-        Alles wat je hebt aangemaakt wordt permanent verwijderd. Toewijzingen aan jou vervallen.
+        Je privé-items worden permanent verwijderd. Je overige items blijven op je boards, maar
+        zonder jou als eigenaar. Toewijzingen aan jou vervallen.
       </p>
     </main>
 
@@ -133,8 +134,8 @@ async function deleteAccount(): Promise<void> {
           <h2 class="text-title font-medium text-text">Eigenaarschap overdragen</h2>
           <p class="mt-1 text-body2 text-muted">
             Van deze boards ben jij de enige eigenaar. Kies wie eigenaar wordt voordat je je
-            account verwijdert. Je gedeelde items gaan naar de nieuwe eigenaar; je privé-items
-            worden verwijderd.
+            account verwijdert. Je privé-items worden verwijderd; je overige items blijven op
+            het board.
           </p>
         </div>
 
@@ -165,7 +166,7 @@ async function deleteAccount(): Promise<void> {
     <ConfirmDialog
       v-if="confirming"
       title="Account verwijderen?"
-      message="Je account en alle items die je hebt aangemaakt worden permanent verwijderd. Toewijzingen aan jou op items van anderen vervallen. Dit kan niet ongedaan worden gemaakt."
+      message="Je account en je privé-items worden permanent verwijderd. Je overige items blijven op je boards, maar zonder jou als eigenaar. Toewijzingen aan jou op items van anderen vervallen. Dit kan niet ongedaan worden gemaakt."
       confirm-label="Definitief verwijderen"
       danger
       @confirm="deleteAccount"
